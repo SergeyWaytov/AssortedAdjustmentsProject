@@ -1,0 +1,24 @@
+{
+  "ID": "SergeyWaytov_AssortedAdjustmentsProject",
+  "AssemblyName": "SergeyWaytov_AssortedAdjustmentsProject.dll",
+  "Author": [
+    {
+      "Key": "English",
+      "Value": "SergeyWaytov"
+    }
+  ],
+  "Version": "1.0.0",
+  "Name": [
+    {
+      "Key": "English",
+      "Value": "Assorted Adjustments Project"
+    }
+  ],
+  "Description": [
+    {
+      "Key": "English",
+      "Value": "Comprehensive balance overhaul and essential UI enhancements. Features tactical ability rebalancing, weapon/armor adjustments, facility improvements, QoL UI additions, and bug fixes from TFTV and original AA. Mainly cribbing some notes off OG AA and https://github.com/Voland163/TFTV with some of my really-old ideas and bit of brainstorming"
+    }
+  ],
+  "Dependencies": []
+}
