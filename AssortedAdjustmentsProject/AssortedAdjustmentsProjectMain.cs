@@ -29,6 +29,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
             DefCache = new DefCache();
 
+            DefNameScanner.Run();
             AbilityAdjustments.Apply(DefCache);
             WeaponAdjustments.Apply(DefCache);
             ArmorAdjustments.Apply(DefCache);

@@ -36,6 +36,7 @@
 		<Compile Include="Catcher_AllUI.cs" />
 		<Compile Include="Catcher_DefVerification.cs" />
 		<Compile Include="DefCache.cs" />
+		<Compile Include="DefNameScanner.cs" />
 		<Compile Include="DeploymentCapPatch.cs" />
 		<Compile Include="EconomyAmbushPatches.cs" />
 		<Compile Include="GeoscapeFacilitiesPatches.cs" />
@@ -44,6 +45,7 @@
 		<Compile Include="Properties\AssemblyInfo.cs" />
 		<Compile Include="RepairCosts.cs" />
 		<Compile Include="ReturnFirePatch.cs" />
+		<Compile Include="ScrapAircraftFix.cs" />
 		<Compile Include="SquadEvacPatch.cs" />
 		<Compile Include="TacticalSpawnDiscovery.cs" />
 		<Compile Include="TutorialDiagnostic.cs" />
