@@ -33,8 +33,6 @@
 		<Compile Include="AmbushChances.cs" />
 		<Compile Include="ArmorPatches.cs" />
 		<Compile Include="AssortedAdjustmentsProjectMain.cs" />
-		<Compile Include="Catcher_AllUI.cs" />
-		<Compile Include="Catcher_DefVerification.cs" />
 		<Compile Include="DefCache.cs" />
 		<Compile Include="DefNameScanner.cs" />
 		<Compile Include="DeploymentCapPatch.cs" />

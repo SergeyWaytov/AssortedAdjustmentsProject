@@ -38,7 +38,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             AmbushChances.Apply(DefCache);
             LootMechanics.Apply(DefCache);
             RepairCosts.Apply(DefCache);
-            DefVerificationCatcher.Run(DefCache);
 
             // Update soldier templates and create the fixed Jacob reference
             FixSoldierTemplates();
