@@ -46,7 +46,6 @@
 		<Compile Include="RepairCosts.cs" />
 		<Compile Include="ReturnFirePatch.cs" />
 		<Compile Include="ScrapAircraftFix.cs" />
-		<Compile Include="SimpleUILogger.cs" />
 		<Compile Include="SquadEvacPatch.cs" />
 		<Compile Include="TacticalSpawnDiscovery.cs" />
 		<Compile Include="TutorialDiagnostic.cs" />

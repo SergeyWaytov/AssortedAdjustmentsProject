@@ -204,6 +204,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                     }
                 }
             }
+            else
+            {
+                Debug.LogWarning("[AAP] Frenzy_StatusDef not found. Frenzy unchanged.");
+            }
 
             // ===== Increase Max Personal Abilities from 3 to 5 =====
 
