@@ -77,7 +77,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             [HarmonyPrepare]
             public static bool Prepare()
             {
-                var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.Core.GeoscapeLog");
+                // Correct type: PhoenixPoint.Geoscape.Levels.GeoscapeLog
+                var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.Levels.GeoscapeLog");
                 if (type == null)
                 {
                     Debug.LogWarning("[AAP] ExtendedAgendaTracker: GeoscapeLog type not found. OnExcavationStarted patch disabled.");
@@ -98,7 +99,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             public static MethodBase TargetMethod()
             {
                 if (patchDisabled) return null;
-                var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.Core.GeoscapeLog");
+                var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.Levels.GeoscapeLog");
                 return AccessTools.Method(type, "PhoenixFaction_OnExcavationStarted");
             }
 
@@ -139,7 +140,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             [HarmonyPrepare]
             public static bool Prepare()
             {
-                var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.Core.GeoscapeLog");
+                // Correct type: PhoenixPoint.Geoscape.Levels.GeoscapeLog
+                var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.Levels.GeoscapeLog");
                 if (type == null)
                 {
                     Debug.LogWarning("[AAP] ExtendedAgendaTracker: GeoscapeLog type not found. OnDefenseScheduled patch disabled.");
@@ -160,7 +162,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             public static MethodBase TargetMethod()
             {
                 if (patchDisabled) return null;
-                var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.Core.GeoscapeLog");
+                var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.Levels.GeoscapeLog");
                 return AccessTools.Method(type, "ShowSiteDefenseTimer");
             }
 

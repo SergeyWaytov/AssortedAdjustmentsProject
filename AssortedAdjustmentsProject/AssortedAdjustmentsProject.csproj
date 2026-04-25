@@ -44,6 +44,8 @@
 		<Compile Include="RepairCosts.cs" />
 		<Compile Include="ReturnFirePatch.cs" />
 		<Compile Include="ScrapAircraftFix.cs" />
+		<Compile Include="SniperPrecisionShotAbility.cs" />
+		<Compile Include="SniperPrecisionShotUI.cs" />
 		<Compile Include="SquadEvacPatch.cs" />
 		<Compile Include="TacticalSpawnDiscovery.cs" />
 		<Compile Include="TutorialDiagnostic.cs" />

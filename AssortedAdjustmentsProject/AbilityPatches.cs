@@ -11,6 +11,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
 
 namespace SergeyWaytov.AssortedAdjustmentsProject
@@ -183,26 +184,15 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 // Future: add ability to specialization or find the soldier class abilities list
             }
 
-            // ===== Frenzy Rework (+8 SPD instead of +50%) =====
+            // ===== Frenzy: percentage Speed boost (multiplier) =====
             var frenzyStatus = cache.GetDef<BaseDef>("Frenzy_StatusDef");
             if (frenzyStatus != null)
             {
-                var modsField = Traverse.Create(frenzyStatus).Field("StatModifications");
-                var mods = modsField.GetValue<object[]>();
-                if (mods != null)
-                {
-                    foreach (var mod in mods)
-                    {
-                        var statName = Traverse.Create(mod).Field("StatName").GetValue<string>();
-                        if (statName == "Speed")
-                        {
-                            Traverse.Create(mod).Field("ModificationType").SetValue(0); // flat
-                            Traverse.Create(mod).Field("Value").SetValue(8f);
-                            Debug.Log("[AAP] Frenzy status now grants +8 Speed (flat).");
-                            break;
-                        }
-                    }
-                }
+                // Change the multiplier from default 1.5 (+50%) to 1.75 (+75%)
+                Traverse.Create(frenzyStatus).Field("SpeedCoefficient")?.SetValue(1.75f);
+                Traverse.Create(frenzyStatus).Field("WillpowerCoefficient")?.SetValue(1.5f);
+                Traverse.Create(frenzyStatus).Field("DamageCoefficient")?.SetValue(1.5f);
+                Debug.Log("[AAP] Frenzy: Speed bonus increased to +75%, Willpower/Damage kept at +50%.");
             }
             else
             {
@@ -210,7 +200,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
 
             // ===== Increase Max Personal Abilities from 3 to 5 =====
-
             var humanStatSheet = cache.GetDef<BaseDef>("HumanSoldier_BaseStatSheetDef");
             if (humanStatSheet != null)
             {
