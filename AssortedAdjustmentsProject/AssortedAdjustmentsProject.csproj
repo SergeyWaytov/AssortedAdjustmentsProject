@@ -41,6 +41,7 @@
 		<Compile Include="Helpers.cs" />
 		<Compile Include="LootMechanics.cs" />
 		<Compile Include="Properties\AssemblyInfo.cs" />
+		<Compile Include="PsychicBuffPatches.cs" />
 		<Compile Include="RepairCosts.cs" />
 		<Compile Include="ReturnFirePatch.cs" />
 		<Compile Include="ScrapAircraftFix.cs" />

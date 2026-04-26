@@ -1,4 +1,5 @@
-﻿using System;
+﻿// UIDiscovery.cs – updated with Psychic target checks
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -9,7 +10,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 {
     /// <summary>
     /// Harmony-based discovery: logs every call to methods whose name matches a set of keywords.
-    /// Also performs a one‑time scan for types containing "Log" on first use.
+    /// Also performs a one‑time scan for types containing "Log" on first use,
+    /// and now verifies the Psychic buff patch targets.
     /// </summary>
     [HarmonyPatch]
     public static class UIDiscovery
@@ -20,6 +22,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         static UIDiscovery()
         {
             ScanLogTypes();
+            CheckPsychicTargets();   // <-- NEW
         }
 
         private static void ScanLogTypes()
@@ -47,6 +50,52 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
             Debug.Log($"[AAP DISCOVERY] === Scan complete. {found} candidate(s) found. ===");
         }
+
+        // ---------- NEW: Psychic target verification ----------
+        private static void CheckPsychicTargets()
+        {
+            Debug.Log("[AAP DISCOVERY] === Checking Psychic Buff patch targets ===");
+
+            // Already confirmed
+            var researchMethod = AccessTools.Method(
+                "PhoenixPoint.Geoscape.Levels.Factions.GeoPhoenixFaction:OnResearchCompleted");
+            if (researchMethod != null) Debug.Log("[AAP DISCOVERY]   GeoPhoenixFaction.OnResearchCompleted – FOUND");
+
+            // Try each known TFTV target location
+            var methodsToCheck = new[] {
+        "PhoenixPoint.Tactical.Entities.Abilities.ApplyStatusAbility:GetWillCheckCost",
+        "Base.Entities.Statuses.StatusTemplate:GetEffectiveWillCheckCost",
+        "Base.Entities.Statuses.StatusTemplate:GetWillCheckCost",
+        "PhoenixPoint.Tactical.Entities.Statuses.StatusTemplate:GetEffectiveWillCheckCost",
+        "PhoenixPoint.Tactical.Entities.Statuses.StatusTemplate:GetWillCheckCost"
+    };
+
+            foreach (var m in methodsToCheck)
+            {
+                var method = AccessTools.Method(m);
+                if (method != null)
+                    Debug.Log($"[AAP DISCOVERY]   {m} – FOUND");
+                else
+                    Debug.LogWarning($"[AAP DISCOVERY]   {m} – MISSING");
+            }
+            // Discover WillBreakControl on psychic statuses
+            string[] statusNames = { "InducePanicStatus", "PsychicScreamStatus", "MindCrushStatus", "FrenzyStatus" };
+            foreach (var sn in statusNames)
+            {
+                var t = AccessTools.TypeByName("PhoenixPoint.Tactical.Entities.Statuses." + sn);
+                if (t != null)
+                {
+                    var wbc = AccessTools.Method(t, "WillBreakControl");
+                    if (wbc != null)
+                        Debug.Log($"[AAP DISCOVERY]   {sn}.WillBreakControl – FOUND");
+                    else
+                        Debug.LogWarning($"[AAP DISCOVERY]   {sn}.WillBreakControl – MISSING");
+                }
+            }
+
+            Debug.Log("[AAP DISCOVERY] === Psychic target check complete ===");
+        }
+        // ---------- END NEW ----------
 
         // ---------- Existing runtime method logging ----------
         private static readonly HashSet<string> TargetMethodNames = new HashSet<string>
