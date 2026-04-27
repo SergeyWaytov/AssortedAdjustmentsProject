@@ -48,8 +48,7 @@
 		<!-- <Compile Include="ResearchNameLogger.cs" />7 -->
 		<Compile Include="ReturnFirePatch.cs" />
 		<Compile Include="ScrapAircraftFix.cs" />
-		<!-- <Compile Include="SniperPrecisionShotAbility.cs" />
-		<Compile Include="SniperPrecisionShotUI.cs" /> -->
+		
 		<Compile Include="SquadEvacPatch.cs" />
 		<!-- <Compile Include="TacticalSpawnDiscovery.cs" />7
 		<Compile Include="TutorialDiagnostic.cs" />7 -->
