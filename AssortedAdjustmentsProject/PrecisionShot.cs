@@ -16,10 +16,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 {
     /// <summary>
     /// Standalone implementation of "Precision Shot":
-    /// - 0 AP / 3 WP, once per turn
+    /// - 0 AP / 4 WP, once per turn
     /// - Applies a status that makes the next attack cost 0 AP
+    /// - Also gives +20% Accuracy for that attack
     /// - Granted to any character with the Sniper class
-    /// - Uses the same pattern as vanilla Quick Aim
     /// </summary>
     public static class PrecisionShot
     {
@@ -27,6 +27,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         private const string PrecisionShotGuid = "a1b2c3d4-e5f6-4789-abcd-ef0123456789";
         private const string PrecisionCostGuid = "b2c3d4e5-f6a7-4b89-bcde-f01234567890";
         private const string PrecisionStatusGuid = "c3d4e5f6-a7b8-4c9a-cdef-012345678901";
+        private const string PrecisionAccGuid = "d4e5f6a7-b8c9-4d0a-defa-012345678901"; // accuracy multiplier
 
         public static void Apply(DefCache cache)
         {
@@ -45,7 +46,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             // Configure the ability itself
             var tAbility = Traverse.Create(precisionShot);
             tAbility.Property("ActionPointCost")?.SetValue(0f);
-            tAbility.Property("WillPointCost")?.SetValue(3);
+            tAbility.Property("WillPointCost")?.SetValue(4);               // 4 WP
             precisionShot.UsesPerTurn = 1;
             precisionShot.ShowNotificationOnUse = true;
 
@@ -70,7 +71,26 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             psCostMod.AbilityCostModification.ActionPointMod = -10f;
             psCostMod.Visuals = precisionShot.ViewElementDef;
 
-            // --- 3. Clone the AddAttackBoostStatus (holds cost modifier, consumed after 1 attack) ---
+            // --- 3. Create Accuracy Multiplier (+20%) ---
+            var trembling = cache.GetDef<StatMultiplierStatusDef>("Trembling_StatusDef");
+            StatMultiplierStatusDef psAccMod = null;
+            if (trembling != null)
+            {
+                psAccMod = Helpers.CreateDefFromClone(trembling, PrecisionAccGuid,
+                    "E_AccuracyMultiplier [AAP_PrecisionShot_AbilityDef]") as StatMultiplierStatusDef;
+                if (psAccMod != null)
+                {
+                    // Trembling normally reduces accuracy; we want to increase it
+                    psAccMod.StatsMultipliers[0].Multiplier = 1.2f;   // +20%
+                    psAccMod.EffectName = string.Empty;
+                    psAccMod.ShowNotification = false;
+                    psAccMod.VisibleOnHealthbar = 0;                  // hidden
+                    psAccMod.VisibleOnStatusScreen = 0;               // hidden
+                    psAccMod.Visuals = null;
+                }
+            }
+
+            // --- 4. Clone the AddAttackBoostStatus (holds cost modifier + accuracy, consumed after 1 attack) ---
             var qaBoost = cache.GetDef<AddAttackBoostStatusDef>("E_Status [QuickAim_AbilityDef]");
             if (qaBoost == null)
             {
@@ -82,31 +102,19 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 "E_Status [AAP_PrecisionShot_AbilityDef]") as AddAttackBoostStatusDef;
             if (psBoost == null) return;
 
-            psBoost.AdditionalStatusesToApply = new TacStatusDef[] { psCostMod };
+            // Prepare list of statuses to apply
+            var additionalStatuses = new List<TacStatusDef> { psCostMod };
+            if (psAccMod != null)
+                additionalStatuses.Add(psAccMod);
+
+            psBoost.AdditionalStatusesToApply = additionalStatuses.ToArray();
             psBoost.Visuals = precisionShot.ViewElementDef;
             psBoost.ShowNotification = true;
-
-            // (Optional) Add a small accuracy bonus – uncomment if desired
-            // -------------------------------------------------------------------
-            // var accuracyMult = cache.GetDef<StatMultiplierStatusDef>("Trembling_StatusDef");
-            // if (accuracyMult != null)
-            // {
-            //     var psAccMod = Helpers.CreateDefFromClone(accuracyMult, "optional-guid",
-            //         "E_AccuracyMultiplier [AAP_PrecisionShot_AbilityDef]") as StatMultiplierStatusDef;
-            //     if (psAccMod != null)
-            //     {
-            //         psAccMod.StatsMultipliers[0].Multiplier = 1.2f; // +20% accuracy
-            //         psAccMod.Visuals = null;
-            //         psBoost.AdditionalStatusesToApply = psBoost.AdditionalStatusesToApply
-            //             .Append(psAccMod).ToArray();
-            //     }
-            // }
-            // -------------------------------------------------------------------
 
             // Link the status to the ability
             precisionShot.StatusDef = psBoost;
 
-            // --- 4. Add ability to Sniper class ---
+            // --- 5. Add ability to Sniper class ---
             var sniperClass = cache.GetDef<ClassProficiencyAbilityDef>("Sniper_ClassProficiency_AbilityDef");
             if (sniperClass != null)
             {
