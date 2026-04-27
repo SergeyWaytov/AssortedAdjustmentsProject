@@ -20,7 +20,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
         // Fixed campaign template for Jacob – used by the runtime tutorial fix
         public static TacCharacterDef JacobsFixedTemplate { get; private set; }
-
+        //public static bool DiagnosticsEnabled = false;   // turn on only when needed
         public override void OnModEnabled()
         {
             Debug.Log("=========================================");
@@ -29,7 +29,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
             DefCache = new DefCache();
 
-            DefNameScanner.Run();
+
+            //DefNameScanner.Run();
            
             AbilityAdjustments.Apply(DefCache);
             SniperPrecisionShotAbility.Apply(DefCache);

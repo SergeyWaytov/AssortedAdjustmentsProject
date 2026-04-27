@@ -1,4 +1,4 @@
-﻿// PsychicBuffManager.cs (fixed – defensive only vs enemy attacks)
+﻿// PsychicBuffManager.cs (Final – Approved design, 2026‑04‑27)
 using Base.Core;
 using Base.Defs;
 using HarmonyLib;
@@ -21,10 +21,12 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     {
         public static GameTagDef MindfraggerBonusTag;
         public static GameTagDef PsychicInfluencesTag;
-        // Force ON for testing – MUST be replaced with research gating before release
+
+        // ---------- Flags (forced on for testing; replace with research gating before release) ----------
         public static bool MindfraggerResearchCompleted = true;
         public static bool PsychicInfluencesCompleted = true;
 
+        // ---------- Offensive WP switcheroo state ----------
         public static Dictionary<TacticalAbility, (float savedMax, float savedCurrent)> offensiveSwitcheroo
             = new Dictionary<TacticalAbility, (float savedMax, float savedCurrent)>();
 
@@ -44,25 +46,35 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         }
     }
 
-    // =============== TAG INHERITANCE ON SPAWN (adds tags to player soldiers) ===============
+    // ================================================================
+    // TAG INHERITANCE – adds tags to all Phoenix soldiers on mission start
+    // ================================================================
     [HarmonyPatch(typeof(TacticalActor), "ProcessInstanceData")]
     public static class PsychicTagInheritance_Patch
     {
         [HarmonyPostfix]
         public static void Postfix(TacticalActor __instance)
         {
-            if (__instance.TacticalFaction != __instance.TacticalLevel?.View?.ViewerFaction) return;
+            if (__instance.TacticalFaction != __instance.TacticalLevel?.View?.ViewerFaction)
+                return;
+
             var geoLevel = GameUtl.CurrentLevel()?.GetComponent<GeoLevelController>();
             var geoChar = geoLevel?.PhoenixFaction?.Characters.FirstOrDefault(c => c.Id == __instance.GeoUnitId);
             if (geoChar == null) return;
-            if (PsychicBuffManager.MindfraggerResearchCompleted && !__instance.GameTags.Contains(PsychicBuffManager.MindfraggerBonusTag))
+
+            if (PsychicBuffManager.MindfraggerResearchCompleted &&
+                !__instance.GameTags.Contains(PsychicBuffManager.MindfraggerBonusTag))
                 __instance.AddGameTags(new GameTagsList() { PsychicBuffManager.MindfraggerBonusTag });
-            if (PsychicBuffManager.PsychicInfluencesCompleted && !__instance.GameTags.Contains(PsychicBuffManager.PsychicInfluencesTag))
+
+            if (PsychicBuffManager.PsychicInfluencesCompleted &&
+                !__instance.GameTags.Contains(PsychicBuffManager.PsychicInfluencesTag))
                 __instance.AddGameTags(new GameTagsList() { PsychicBuffManager.PsychicInfluencesTag });
         }
     }
 
-    // =============== OFFENSIVE JUGGLING (for player psychic attacks) ===============
+    // ================================================================
+    // STAGE 2 – OFFENSIVE SWITCHEROO (Phoenix casters only, NO WP BLOCK)
+    // ================================================================
     [HarmonyPatch(typeof(TacticalAbility), "ApplyCosts")]
     public static class OffensivePsychicApplyCosts_Patch
     {
@@ -70,37 +82,51 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         {
             if (!PsychicBuffManager.PsychicInfluencesCompleted) return true;
             if (!IsOffensivePsychic(__instance.TacticalAbilityDef.name)) return true;
-            var caster = __instance.TacticalActor;
-            if (caster == null || !caster.GameTags.Contains(PsychicBuffManager.PsychicInfluencesTag)) return true;
-            if (caster.CharacterStats.WillPoints.Max <= 56f) return false; // block
 
+            var caster = __instance.TacticalActor;
+            if (caster == null || !caster.GameTags.Contains(PsychicBuffManager.PsychicInfluencesTag))
+                return true;   // only Phoenix tagged soldiers get the bonus
+
+            // Switcheroo (rule #9)
             var wp = caster.CharacterStats.WillPoints;
             float savedMax = wp.Max, savedCurrent = wp.Value;
             PsychicBuffManager.offensiveSwitcheroo[__instance] = (savedMax, savedCurrent);
+
             wp.Set(savedMax + 30f, false);
             wp.Set(savedCurrent + 30f, false);
+
             Debug.Log($"[AAP] Offensive WP boost: {__instance.TacticalAbilityDef.name} cast by {caster.DisplayName} (WP {savedCurrent}/{savedMax} → {wp.Value}/{wp.Max})");
             return true;
         }
+
         static void Postfix(TacticalAbility __instance)
         {
-            if (PsychicBuffManager.offensiveSwitcheroo.TryGetValue(__instance, out var saved))
-            {
-                var wp = __instance.TacticalActor.CharacterStats.WillPoints;
-                float costPaid = saved.savedCurrent - (wp.Value - 30f);
-                wp.Set(saved.savedMax, false);
-                wp.Set(saved.savedCurrent - costPaid, false);
-                PsychicBuffManager.offensiveSwitcheroo.Remove(__instance);
-                Debug.Log($"[AAP] Offensive WP restored: cost = {costPaid}, WP now {wp.Value}/{wp.Max}");
-            }
+            if (!PsychicBuffManager.offensiveSwitcheroo.TryGetValue(__instance, out var saved))
+                return;
+
+            var wp = __instance.TacticalActor.CharacterStats.WillPoints;
+            // cost paid = original current − (current after cost − 30 boost)
+            float costPaid = saved.savedCurrent - (wp.Value - 30f);
+            if (costPaid < 0f) costPaid = 0f;
+
+            wp.Set(saved.savedMax, false);
+            wp.Set(saved.savedCurrent - costPaid, false);
+            PsychicBuffManager.offensiveSwitcheroo.Remove(__instance);
+
+            Debug.Log($"[AAP] Offensive WP restored: cost = {costPaid}, WP now {wp.Value}/{wp.Max}");
         }
-        private static bool IsOffensivePsychic(string n) =>
-            n.Contains("MindControl") || n.Contains("Panic") ||
-            n.Contains("PsychicScream") || n.Contains("MindCrush") ||
-            n.Contains("InstilFrenzy");
+
+        private static bool IsOffensivePsychic(string name) =>
+            name.Contains("MindControl") || name.Contains("InducePanic") ||
+            name.Contains("PsychicScream") || name.Contains("MindCrush") ||
+            name.Contains("InstilFrenzy");
     }
 
-    // =============== DEFENSIVE TARGET FILTER (now only vs enemy attacks!) ===============
+    // ================================================================
+    // DEFENSIVE PATCHES (rules #1‑8) – only when an ENEMY attacks a Phoenix soldier
+    // ================================================================
+
+    // --- MC / Panic target filter (rules #1, #2, #3, #4) ---
     [HarmonyPatch(typeof(ApplyEffectAbility), "TargetFilterPredicate")]
     public static class DefensiveTargetFilter_Patch
     {
@@ -114,24 +140,23 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             TacticalActor caster = __instance.TacticalActor;
             if (target == null || caster == null) return true;
 
-            // ONLY defend when the CASTER is an enemy of the target (i.e., enemy attack on our soldier)
-            if (caster.TacticalFaction.GetRelationTo(target.TacticalFaction) != FactionRelation.Enemy)
-                return true;   // allow friendly / self cast without interference
+            // Only defend Phoenix soldiers against enemies
+            if (target.TacticalFaction != target.TacticalLevel.View.ViewerFaction ||
+                caster.TacticalFaction.GetRelationTo(target.TacticalFaction) != FactionRelation.Enemy)
+                return true;
 
-            // --- Stage 2 shell (Psychic Influences) ---
+            // Stage 2 (PsychicInfluences)
             if (PsychicBuffManager.PsychicInfluencesCompleted)
             {
+                // Rule #3: block if attacker Max WP ≤ 56
                 if (caster.CharacterStats.WillPoints.Max <= 56f)
                 {
                     __result = false;
                     Debug.Log($"[AAP] Defensive block (shell): {defName} from {caster.DisplayName} (WPmax≤56) against {target.DisplayName}");
                     return false;
                 }
-            }
 
-            // --- WP inflation (both stages) ---
-            if (PsychicBuffManager.PsychicInfluencesCompleted)
-            {
+                // Rule #4: inflate defender WP to 56 if attacker fresh (>20 current WP)
                 if (caster.CharacterStats.WillPoints.Value > 20f)
                 {
                     var wp = target.CharacterStats.WillPoints;
@@ -141,6 +166,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                     Debug.Log($"[AAP] Defensive WP inflated to 56 for {target.DisplayName} (shell active)");
                 }
             }
+            // Stage 1 (Mindfragger only) – rule #1
             else if (PsychicBuffManager.MindfraggerResearchCompleted &&
                      target.GameTags.Contains(PsychicBuffManager.MindfraggerBonusTag))
             {
@@ -171,43 +197,108 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             = new Dictionary<TacticalActor, (float cur, float max)>();
     }
 
-    // =============== PSYCHIC DAMAGE DEFENSE (only when damage source is an enemy) ===============
+    // --- Sonic Blast negation + probability (rule #5) ---
+    [HarmonyPatch(typeof(ApplyEffectAbility), "TargetFilterPredicate")]
+    public static class SonicBlastDefense_Patch
+    {
+        private static readonly System.Random Rng = new System.Random();
+
+        static bool Prefix(ApplyEffectAbility __instance, TacticalActorBase targetActor, ref bool __result)
+        {
+            string defName = __instance.TacticalAbilityDef.name;
+            // Detect Sonic Blast ability – try known def name pattern
+            if (!defName.Contains("SonicBlast") && !defName.Contains("Sonic_Blast"))
+                return true;
+
+            TacticalActor target = targetActor as TacticalActor;
+            TacticalActor caster = __instance.TacticalActor;
+            if (target == null || caster == null) return true;
+            if (target.TacticalFaction != target.TacticalLevel.View.ViewerFaction ||
+                caster.TacticalFaction.GetRelationTo(target.TacticalFaction) != FactionRelation.Enemy)
+                return true;
+
+            // Only Stage 2 (PsychicInfluences)
+            if (!PsychicBuffManager.PsychicInfluencesCompleted)
+                return true;
+
+            float enemyMaxWP = caster.CharacterStats.WillPoints.Max;
+
+            // Rule #5a: negate entirely if Max WP ≤ 56
+            if (enemyMaxWP <= 56f)
+            {
+                __result = false;
+                Debug.Log($"[AAP] Sonic Blast negated (shell): {defName} from {caster.DisplayName} (WPmax≤56) against {target.DisplayName}");
+                return false;
+            }
+
+            // Rule #5b: probability roll (linear 0‑75% from 56 to 66 Max WP)
+            float probability = 0.75f * (enemyMaxWP - 56f) / (66f - 56f);
+            probability = Mathf.Clamp01(probability);
+            float roll = (float)Rng.NextDouble();
+
+            if (roll > probability)
+            {
+                __result = false;
+                Debug.Log($"[AAP] Sonic Blast daze roll failed (prob {probability:P1}): {defName} from {caster.DisplayName} to {target.DisplayName}");
+                return false;
+            }
+
+            Debug.Log($"[AAP] Sonic Blast daze roll succeeded (prob {probability:P1}): {defName} from {caster.DisplayName} to {target.DisplayName}");
+            return true;  // allow the normal dazing calculation
+        }
+    }
+
+    // --- Psychic damage defense (Scream / Mind Crush) – rules #2, #6, #7, #8 ---
     [HarmonyPatch(typeof(DamageAccumulation), "GenerateStandardDamageTargetData")]
     public static class PsychicDamage_Defense
     {
         static void Prefix(DamageAccumulation __instance, IDamageReceiver target)
         {
             var actor = target.GetActor() as TacticalActor;
-            if (actor?.TacticalFaction != actor.TacticalLevel.View.ViewerFaction) return; // only player soldiers
+            if (actor == null || actor.TacticalFaction != actor.TacticalLevel.View.ViewerFaction)
+                return; // only protect Phoenix soldiers
 
             string effectName = __instance.DamageEffectDef?.name ?? "";
-            if (!effectName.Contains("MindCrush") && !effectName.Contains("PsychicScream"))
-                return;
+            bool isScream = effectName.Contains("PsychicScream");
+            bool isCrush = effectName.Contains("MindCrush");
+            if (!isScream && !isCrush) return;
 
             var caster = TacUtil.GetSourceTacticalActorBase(__instance.Source) as TacticalActor;
             if (caster == null) return;
-
-            // Only defend if the CASTER is an enemy of the target
             if (caster.TacticalFaction.GetRelationTo(actor.TacticalFaction) != FactionRelation.Enemy)
-                return;
+                return; // only defend against enemies
 
-            if (PsychicBuffManager.PsychicInfluencesCompleted && caster.CharacterStats.WillPoints.Max <= 56f)
+            float casterMaxWP = caster.CharacterStats.WillPoints.Max;
+
+            // Stage 2 (PsychicInfluences) – rules #6, #7, #8
+            if (PsychicBuffManager.PsychicInfluencesCompleted)
             {
-                __instance.Amount = 0f;
-                Debug.Log($"[AAP] Psychic damage blocked (shell): {effectName} from {caster.DisplayName} to {actor.DisplayName}");
+                // Rule #6: block if caster Max WP ≤ 56
+                if (casterMaxWP <= 56f)
+                {
+                    __instance.Amount = 0f;
+                    Debug.Log($"[AAP] Psychic damage blocked (shell): {effectName} from {caster.DisplayName} (WPmax≤56) to {actor.DisplayName}");
+                    return;
+                }
+
+                // Rule #7: exhaustion halving if caster Current WP ≤ 20
+                if (caster.CharacterStats.WillPoints.Value <= 20f)
+                {
+                    __instance.Amount *= 0.5f;
+                    Debug.Log($"[AAP] Psychic damage halved (exhaustion): {effectName} from {caster.DisplayName} to {actor.DisplayName}");
+                    return;
+                }
+
+                // Rule #8: full damage (no modification)
                 return;
             }
-
-            bool hasStage1 = PsychicBuffManager.MindfraggerResearchCompleted &&
-                             effectName.Contains("PsychicScream") &&
-                             actor.GameTags.Contains(PsychicBuffManager.MindfraggerBonusTag);
-            bool stage2Exhausted = PsychicBuffManager.PsychicInfluencesCompleted &&
-                                   (actor.CharacterStats.WillPoints.Value - caster.CharacterStats.WillPoints.Value > 7f);
-
-            if (hasStage1 || stage2Exhausted)
+            // Stage 1 (Mindfragger only) – rule #2 (Scream only)
+            else if (PsychicBuffManager.MindfraggerResearchCompleted &&
+                     isScream &&
+                     actor.GameTags.Contains(PsychicBuffManager.MindfraggerBonusTag))
             {
                 __instance.Amount *= 0.5f;
-                Debug.Log($"[AAP] Psychic damage halved ({(hasStage1 ? "Stage1" : "exhaustion")}): {effectName} to {actor.DisplayName}");
+                Debug.Log($"[AAP] Psychic damage halved (Stage1 Scream): {effectName} to {actor.DisplayName}");
             }
         }
     }

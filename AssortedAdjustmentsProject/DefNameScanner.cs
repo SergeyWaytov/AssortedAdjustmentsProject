@@ -10,6 +10,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     {
         public static void Run()
         {
+            if (!ModMain.DiagnosticsEnabled) return;
             var repo = GameUtl.GameComponent<DefRepository>();
             var allDefs = repo.GetAllDefs<BaseDef>();
             string[] keywords = { "Sniper", "Class", "BaseStatSheet", "PsychicResistance", "Frenzy", "Stimpack", "HealAbility", "Precision", "PersonalAbility" };
