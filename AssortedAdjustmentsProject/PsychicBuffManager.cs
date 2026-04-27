@@ -208,13 +208,15 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         }
     }
 
-    // ===== NEW: AI no longer tries the blocked ability =====
-    [HarmonyPatch(typeof(MindControlAbility), "GetDisabledStateInternal")]
+    // ===== NEW: AI no longer tries the blocked ability (patched on base class) =====
+    [HarmonyPatch(typeof(TacticalAbility), "GetDisabledStateInternal")]
     public static class MindControl_DisableForAI_Patch
     {
-        static void Postfix(MindControlAbility __instance, ref AbilityDisabledState __result)
+        static void Postfix(TacticalAbility __instance, ref AbilityDisabledState __result,
+            IgnoredAbilityDisabledStatesFilter filter)
         {
             if (!PsychicBuffManager.PsychicInfluencesCompleted) return;
+            if (!(__instance is MindControlAbility)) return;
 
             TacticalActor caster = __instance.TacticalActor;
             if (caster == null) return;
