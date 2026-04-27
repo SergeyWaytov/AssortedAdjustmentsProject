@@ -71,9 +71,9 @@
 		<None Include="meta.json">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
-		<Content Include="..\Data\**">
+		<Content Include="Localization\AAP_Localization.csv">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<Link>Data\%(RecursiveDir)%(Filename)%(Extension)</Link>
+			<Link>Assets\Localization\AAP_Localization.csv</Link>
 		</Content>
 	</ItemGroup>
 
