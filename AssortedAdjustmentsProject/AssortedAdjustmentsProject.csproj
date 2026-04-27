@@ -41,14 +41,15 @@
 		<Compile Include="GeoscapeFacilitiesPatches.cs" />
 		<Compile Include="Helpers.cs" />
 		<Compile Include="LootMechanics.cs" />
+		<Compile Include="PrecisionShot.cs" />
 		<Compile Include="Properties\AssemblyInfo.cs" />
 		<Compile Include="PsychicBuffManager.cs" />
 		<Compile Include="RepairCosts.cs" />
 		<!-- <Compile Include="ResearchNameLogger.cs" />7 -->
 		<Compile Include="ReturnFirePatch.cs" />
 		<Compile Include="ScrapAircraftFix.cs" />
-		<Compile Include="SniperPrecisionShotAbility.cs" />
-		<Compile Include="SniperPrecisionShotUI.cs" />
+		<!-- <Compile Include="SniperPrecisionShotAbility.cs" />
+		<Compile Include="SniperPrecisionShotUI.cs" /> -->
 		<Compile Include="SquadEvacPatch.cs" />
 		<!-- <Compile Include="TacticalSpawnDiscovery.cs" />7
 		<Compile Include="TutorialDiagnostic.cs" />7 -->
