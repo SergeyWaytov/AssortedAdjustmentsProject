@@ -14,7 +14,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 {
     public static class PrecisionShot
     {
-        // GUIDs
         private const string PrecisionShotGuid = "a1b2c3d4-e5f6-4789-abcd-ef0123456789";
         private const string PrecisionCostGuid = "b2c3d4e5-f6a7-4b89-bcde-f01234567890";
         private const string PrecisionStatusGuid = "c3d4e5f6-a7b8-4c9a-cdef-012345678901";
@@ -22,7 +21,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
         public static void Apply(DefCache cache)
         {
-            // 1. Clone Quick Aim ability def
             var quickAim = cache.GetDef<ApplyStatusAbilityDef>("QuickAim_AbilityDef");
             if (quickAim == null) return;
 
@@ -30,23 +28,23 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 "AAP_PrecisionShot_AbilityDef") as ApplyStatusAbilityDef;
             if (precisionShot == null) return;
 
-            // *** CLONE THE VIEW ELEMENT FOR THE ABILITY ***
+            // Clone the view element so we don't corrupt Quick Aim
             precisionShot.ViewElementDef = Helpers.CreateDefFromClone(
                 quickAim.ViewElementDef,
                 "e5f6a7b8-c9d0-4e1a-9bcd-ef0123456789",
                 "E_ViewElement [AAP_PrecisionShot_AbilityDef]") as TacticalAbilityViewElementDef;
 
-            // Localisation
+            // Force localisation keys
             precisionShot.ViewElementDef.DisplayName1.LocalizationKey = "AAP_PRECISION_SHOT";
             precisionShot.ViewElementDef.Description.LocalizationKey = "AAP_PRECISION_SHOT_DESC";
 
-            // Ability costs
+            // Configure the ability
             precisionShot.ActionPointCost = 0f;
             precisionShot.WillPointCost = 4f;
             precisionShot.UsesPerTurn = 1;
             precisionShot.ShowNotificationOnUse = true;
 
-            // 2. Clone the AP cost modifier
+            // Cost modifier
             var qaCostMod = cache.GetDef<ChangeAbilitiesCostStatusDef>(
                 "E_AbilityCostModifier [QuickAim_AbilityDef]");
             var psCostMod = Helpers.CreateDefFromClone(qaCostMod, PrecisionCostGuid,
@@ -57,7 +55,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 "c9d0e1f2-a3b4-4c5d-9e0f-abcdef012345",
                 "E_Visuals [AAP_PrecisionShot_CostMod]") as ViewElementDef;
 
-            // 3. Accuracy Multiplier (+20%)
+            // Accuracy multiplier (+20%)
             var trembling = cache.GetDef<StatMultiplierStatusDef>("Trembling_StatusDef");
             StatMultiplierStatusDef psAccMod = null;
             if (trembling != null)
@@ -72,7 +70,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 psAccMod.Visuals = null;
             }
 
-            // 4. Clone the AddAttackBoostStatus
+            // Boost status
             var qaBoost = cache.GetDef<AddAttackBoostStatusDef>("E_Status [QuickAim_AbilityDef]");
             var psBoost = Helpers.CreateDefFromClone(qaBoost, PrecisionStatusGuid,
                 "E_Status [AAP_PrecisionShot_AbilityDef]") as AddAttackBoostStatusDef;
@@ -89,18 +87,26 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
             precisionShot.StatusDef = psBoost;
 
-            // 5. Add to Sniper class
+            // === MODIFY SNIPER CLASS ===
             var sniperClass = cache.GetDef<ClassProficiencyAbilityDef>("Sniper_ClassProficiency_AbilityDef");
             if (sniperClass != null)
             {
                 var abilities = sniperClass.AbilityDefs?.ToList() ?? new List<AbilityDef>();
+
+                // PistolProficiency mod may have removed Quick Aim – add it back if missing
+                if (quickAim != null && !abilities.Contains(quickAim))
+                {
+                    abilities.Insert(0, quickAim);   // put it at the top (or wherever you like)
+                }
+
                 if (!abilities.Contains(precisionShot))
                 {
                     abilities.Add(precisionShot);
-                    sniperClass.AbilityDefs = abilities.ToArray();
-                    Debug.Log("[AAP] Precision Shot added. Sniper abilities:");
-                    foreach (var a in sniperClass.AbilityDefs) Debug.Log("  " + a.name);
                 }
+
+                sniperClass.AbilityDefs = abilities.ToArray();
+                Debug.Log("[AAP] Sniper abilities after fix:");
+                foreach (var a in sniperClass.AbilityDefs) Debug.Log("  " + a.name);
             }
         }
     }
