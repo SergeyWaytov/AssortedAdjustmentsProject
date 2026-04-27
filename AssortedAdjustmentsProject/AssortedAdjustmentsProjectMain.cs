@@ -30,8 +30,9 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             DefCache = new DefCache();
 
             DefNameScanner.Run();
-            //PsychicBuffManager.Init();
+           
             AbilityAdjustments.Apply(DefCache);
+            SniperPrecisionShotAbility.Apply(DefCache);
             PsychicBuffManager.Init();
             WeaponAdjustments.Apply(DefCache);
             ArmorAdjustments.Apply(DefCache);
