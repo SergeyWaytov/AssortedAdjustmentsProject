@@ -84,21 +84,16 @@
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="Assembly-CSharp">
-			<HintPath>E:\SteamLibrary\steamapps\common\Phoenix Point\PhoenixPointWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
-			<Private>False</Private>
+		  <HintPath>..\ModSDK\Assembly-CSharp.dll</HintPath>
 		</Reference>
 		<Reference Include="Unity.TextMeshPro">
-			<HintPath>E:\SteamLibrary\steamapps\common\Phoenix Point\PhoenixPointWin64_Data\Managed\Unity.TextMeshPro.dll</HintPath>
-			<Private>False</Private>
+		  <HintPath>..\ModSDK\Unity.TextMeshPro.dll</HintPath>
 		</Reference>
 		<Reference Include="UnityEngine.CoreModule">
-			<HintPath>E:\SteamLibrary\steamapps\common\Phoenix Point\PhoenixPointWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
-			<Private>False</Private>
+		  <HintPath>..\ModSDK\UnityEngine.CoreModule.dll</HintPath>
 		</Reference>
-		
 		<Reference Include="UnityEngine.UI">
-			<HintPath>E:\SteamLibrary\steamapps\common\Phoenix Point\PhoenixPointWin64_Data\Managed\UnityEngine.UI.dll</HintPath>
-			<Private>False</Private>
+		  <HintPath>..\ModSDK\UnityEngine.UI.dll</HintPath>
 		</Reference>
 	</ItemGroup>
 
