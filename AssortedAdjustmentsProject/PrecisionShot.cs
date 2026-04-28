@@ -34,9 +34,11 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 "e5f6a7b8-c9d0-4e1a-9bcd-ef0123456789",
                 "E_ViewElement [AAP_PrecisionShot_AbilityDef]") as TacticalAbilityViewElementDef;
 
-            // Force localisation keys
-            precisionShot.ViewElementDef.DisplayName1.LocalizationKey = "AAP_PRECISION_SHOT";
-            precisionShot.ViewElementDef.Description.LocalizationKey = "AAP_PRECISION_SHOT_DESC";
+            // Hardcoded English text – always works
+            precisionShot.ViewElementDef.DisplayName1 = new LocalizedTextBind("Precision Shot", true);
+            precisionShot.ViewElementDef.Description = new LocalizedTextBind(
+                "The next attack costs 0 AP and gains +20% accuracy. Costs 4 WP. Limited to 1 use per turn.",
+                true);
 
             // Configure the ability
             precisionShot.ActionPointCost = 0f;
@@ -95,18 +97,12 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
                 // PistolProficiency mod may have removed Quick Aim – add it back if missing
                 if (quickAim != null && !abilities.Contains(quickAim))
-                {
-                    abilities.Insert(0, quickAim);   // put it at the top (or wherever you like)
-                }
+                    abilities.Insert(0, quickAim);
 
                 if (!abilities.Contains(precisionShot))
-                {
                     abilities.Add(precisionShot);
-                }
 
                 sniperClass.AbilityDefs = abilities.ToArray();
-                Debug.Log("[AAP] Sniper abilities after fix:");
-                foreach (var a in sniperClass.AbilityDefs) Debug.Log("  " + a.name);
             }
         }
     }

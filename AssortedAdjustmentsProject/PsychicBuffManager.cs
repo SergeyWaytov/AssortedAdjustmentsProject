@@ -25,8 +25,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     {
         public static GameTagDef MindfraggerBonusTag;
         public static GameTagDef PsychicInfluencesTag;
-        public static bool MindfraggerResearchCompleted = true;
-        public static bool PsychicInfluencesCompleted = true;
+        public static bool MindfraggerResearchCompleted = false;
+        public static bool PsychicInfluencesCompleted = false;
 
         public static Dictionary<TacticalAbility, (float savedMax, float savedCurrent)> offensiveSwitcheroo
             = new Dictionary<TacticalAbility, (float savedMax, float savedCurrent)>();

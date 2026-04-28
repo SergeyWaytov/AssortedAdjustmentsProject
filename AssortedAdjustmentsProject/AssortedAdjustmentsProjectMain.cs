@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using I2.Loc;
 
 namespace SergeyWaytov.AssortedAdjustmentsProject
 {
@@ -50,6 +51,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             harmony = new Harmony("SergeyWaytov_AssortedAdjustmentsProject");
             harmony.PatchAll();   // Applies all patches, including TutorialJacobFixPatch
             I2.Loc.LocalizationManager.LocalizeAll(true);
+            Debug.Log("[AAP] Precision Shot name: " + ModMain.Localize("PRECISION_SHOT"));
+            Debug.Log("[AAP] Precision Shot desc: " + ModMain.Localize("PRECISION_SHOT_DESC"));
             Debug.Log("[AAP] Mod initialization complete.");
         }
 
