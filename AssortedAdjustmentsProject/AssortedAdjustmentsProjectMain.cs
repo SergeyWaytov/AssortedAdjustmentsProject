@@ -4,6 +4,7 @@ using HarmonyLib;
 using PhoenixPoint.Modding;
 using PhoenixPoint.Tactical.Entities;
 using PhoenixPoint.Tactical.Entities.Abilities;
+using PhoenixPoint.Geoscape.Entities.Research;   // for ResearchDef
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,10 +30,11 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             Debug.Log("=========================================");
 
             DefCache = new DefCache();
+            
 
 
             //DefNameScanner.Run();
-           
+
             AbilityAdjustments.Apply(DefCache);
             //SniperPrecisionShotAbility.Apply(DefCache);
             PrecisionShot.Apply(DefCache);
@@ -41,7 +43,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             ArmorAdjustments.Apply(DefCache);
             GeoscapeFacilitiesAdjustments.Apply(DefCache);
             VehicleAdjustments.Apply(DefCache);
-            
+           
             LootMechanics.Apply(DefCache);
             RepairCosts.Apply(DefCache);
 
@@ -51,8 +53,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             harmony = new Harmony("SergeyWaytov_AssortedAdjustmentsProject");
             harmony.PatchAll();   // Applies all patches, including TutorialJacobFixPatch
             I2.Loc.LocalizationManager.LocalizeAll(true);
+            
             Debug.Log("[AAP] Precision Shot name: " + ModMain.Localize("PRECISION_SHOT"));
             Debug.Log("[AAP] Precision Shot desc: " + ModMain.Localize("PRECISION_SHOT_DESC"));
+
             Debug.Log("[AAP] Mod initialization complete.");
         }
 
@@ -151,5 +155,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         {
             return I2.Loc.LocalizationManager.GetTranslation("AAP_" + key);
         }
+
+        
     }
 }

@@ -12,6 +12,7 @@
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
 		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+		<CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
@@ -28,14 +29,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- Core ability patches (working) -->
 		<Compile Include="AbilityPatches.cs" />
 		<Compile Include="AmbushDisabler.cs" />
 		<Compile Include="ArmorPatches.cs" />
 		<Compile Include="AssortedAdjustmentsProjectMain.cs" />
 		<Compile Include="DefCache.cs" />
-		<!-- 
-		<Compile Include="DefNameScanner.cs" /> -->
 		<Compile Include="DeploymentCapPatch.cs" />
 		<Compile Include="EconomyAmbushPatches.cs" />
 		<Compile Include="GeoscapeFacilitiesPatches.cs" />
@@ -46,16 +44,11 @@
 		<Compile Include="PsychicBuffManager.cs" />
 		<Compile Include="PsychicResearchConditions.cs" />
 		<Compile Include="RepairCosts.cs" />
-		<!-- <Compile Include="ResearchNameLogger.cs" />7 -->
+		<Compile Include="ResearchCompletePopupPatch.cs" />
 		<Compile Include="ReturnFirePatch.cs" />
 		<Compile Include="ScrapAircraftFix.cs" />
-		
 		<Compile Include="SquadEvacPatch.cs" />
-		<!-- <Compile Include="TacticalSpawnDiscovery.cs" />7
-		<Compile Include="TutorialDiagnostic.cs" />7 -->
 		<Compile Include="TutorialJacobFixPatch.cs" />
-		<!-- <Compile Include="UIDiagnostics.cs" />7
-		<Compile Include="UIDiscovery.cs" />7 -->
 		<Compile Include="UIPatches.cs" />
 		<Compile Include="UI_ExtendedAgendaTracker.cs" />
 		<Compile Include="UI_ExtendedBaselineInfo.cs" />
@@ -64,8 +57,6 @@
 		<Compile Include="VehiclePatches.cs" />
 		<Compile Include="WeaponPatches.cs" />
 		<Compile Include="WPCostDiscovery.cs" />
-
-		
 	</ItemGroup>
 
 	<ItemGroup>
@@ -84,22 +75,35 @@
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="Assembly-CSharp">
-		  <HintPath>..\ModSDK\Assembly-CSharp.dll</HintPath>
+			<HintPath>..\ModSDK\Assembly-CSharp.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
 		<Reference Include="Unity.TextMeshPro">
-		  <HintPath>..\ModSDK\Unity.TextMeshPro.dll</HintPath>
+			<HintPath>..\ModSDK\Unity.TextMeshPro.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
 		<Reference Include="UnityEngine.CoreModule">
-		  <HintPath>..\ModSDK\UnityEngine.CoreModule.dll</HintPath>
+			<HintPath>..\ModSDK\UnityEngine.CoreModule.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
 		<Reference Include="UnityEngine.UI">
-		  <HintPath>..\ModSDK\UnityEngine.UI.dll</HintPath>
+			<HintPath>..\ModSDK\UnityEngine.UI.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
 	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+		<!-- Purge unwanted reference DLLs from the output so they never ship -->
+		<Delete Files="$(OutputPath)0Harmony.dll" />
+		<Delete Files="$(OutputPath)0Harmony.xml" />
+		<Delete Files="$(OutputPath)Assembly-CSharp.dll" />
+		<Delete Files="$(OutputPath)Unity.TextMeshPro.dll" />
+		<Delete Files="$(OutputPath)UnityEngine.CoreModule.dll" />
+		<Delete Files="$(OutputPath)UnityEngine.UI.dll" />
+
+		<!-- Deploy the clean output to TestMod -->
 		<Exec Command="IF EXIST &quot;%25USERPROFILE%25\AppData\LocalLow\Snapshot Games Inc\Phoenix Point\Steam\WorkshopTool\TestMod&quot; RMDIR /S /Q &quot;%25USERPROFILE%25\AppData\LocalLow\Snapshot Games Inc\Phoenix Point\Steam\WorkshopTool\TestMod&quot;" />
 		<Exec Command="MKDIR &quot;%25USERPROFILE%25\AppData\LocalLow\Snapshot Games Inc\Phoenix Point\Steam\WorkshopTool\TestMod&quot; 2&gt;NUL" />
-		<Exec Command="XCOPY /Y /S /Q &quot;$(SolutionDir)Dist\*&quot; &quot;%25USERPROFILE%25\AppData\LocalLow\Snapshot Games Inc\Phoenix Point\Steam\WorkshopTool\TestMod&quot;" />
+		<Exec Command="XCOPY /Y /S /Q &quot;$(OutputPath)*&quot; &quot;%25USERPROFILE%25\AppData\LocalLow\Snapshot Games Inc\Phoenix Point\Steam\WorkshopTool\TestMod&quot;" />
 	</Target>
 </Project>
