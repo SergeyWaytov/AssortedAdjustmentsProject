@@ -9,6 +9,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     {
         public static void Run()
         {
+            if (!ModMain.DiagnosticsEnabled) return;
             Debug.Log("[AAP SCAN] === Starting tactical method scan ===");
             int found = 0;
 

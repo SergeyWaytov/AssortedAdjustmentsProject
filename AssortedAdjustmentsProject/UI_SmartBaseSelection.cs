@@ -1,53 +1,25 @@
-﻿using HarmonyLib;
-using System;
+﻿using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
+using HarmonyLib;
 using UnityEngine;
 
 namespace SergeyWaytov.AssortedAdjustmentsProject
 {
-    /// <summary>
-    /// Automatically selects the nearest base when entering the Bases screen.
-    /// If the target type/method is not found at runtime, the patch is safely ignored.
-    /// </summary>
     [HarmonyPatch]
     public static class SmartBaseSelection
     {
-        private static bool patchDisabled = false;
-
-        [HarmonyPrepare]
-        public static bool Prepare()
-        {
-            var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.View.ViewStates.UIStateGeoBases");
-            if (type == null)
-            {
-                Debug.LogWarning("[AAP] SmartBaseSelection: UIStateGeoBases type not found. Patch disabled.");
-                patchDisabled = true;
-                return false;
-            }
-            var method = AccessTools.Method(type, "EnterState");
-            if (method == null)
-            {
-                Debug.LogWarning("[AAP] SmartBaseSelection: EnterState method not found. Patch disabled.");
-                patchDisabled = true;
-                return false;
-            }
-            return true;
-        }
-
         [HarmonyTargetMethod]
         public static MethodBase TargetMethod()
         {
-            if (patchDisabled) return null;
-            var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.View.ViewStates.UIStateGeoBases");
+            var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.View.ViewStates.UIStatePhoenixBaseLayout");
             return AccessTools.Method(type, "EnterState");
         }
 
         [HarmonyPrefix]
         public static void EnterState_Prefix(object __instance)
         {
-            if (patchDisabled) return;
             try
             {
                 var traverse = Traverse.Create(__instance);

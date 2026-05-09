@@ -84,9 +84,19 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             var accessLift = cache.GetDef<BaseDef>("AccessLift_PhoenixFacilityDef");
             if (accessLift != null)
             {
-                Traverse.Create(accessLift).Property("CanBeDemolished").SetValue(false);
-                Traverse.Create(accessLift).Property("MaxInstancesPerBase").SetValue(1);
-                Debug.Log("[AAP] Access Lift protected: cannot be demolished, limit 1 per base.");
+                var t = Traverse.Create(accessLift);
+                // Try all common boolean property names
+                foreach (var propName in new[] { "CanBeDemolished", "IsIndestructible", "Indestructible", "CanBeRemoved", "Demolishable" })
+                {
+                    try
+                    {
+                        t.Property(propName)?.SetValue(false);
+                        Debug.Log($"[AAP] AccessLift.{propName} set to false.");
+                    }
+                    catch { }
+                }
+                t.Property("MaxInstancesPerBase")?.SetValue(1);
+                Debug.Log("[AAP] Access Lift protection attempt complete.");
             }
         }
     }

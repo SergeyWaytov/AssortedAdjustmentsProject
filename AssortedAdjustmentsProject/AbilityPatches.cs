@@ -11,6 +11,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
 
 namespace SergeyWaytov.AssortedAdjustmentsProject
@@ -93,18 +94,14 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
 
             // ===== Stimpack Buff =====
-            var stimpack = cache.GetDef<BaseDef>("Stimpack_EquipmentDef");
-            if (stimpack != null)
+            var stimpackAbility = cache.GetDef<BaseDef>("Stimpack_AbilityDef"); // This is the HealAbilityDef
+            if (stimpackAbility != null)
             {
-                var healDef = Traverse.Create(stimpack).Property("HealAbilityDef").GetValue<object>();
-                if (healDef != null)
-                {
-                    var tHeal = Traverse.Create(healDef);
-                    tHeal.Property("ActionPointCost")?.SetValue(0.25f);
-                    tHeal.Property("HealBodyParts")?.SetValue(true);
-                    tHeal.Property("BodyPartHealAmount")?.SetValue(10.0f);
-                    Debug.Log("[AAP] Stimpack buffed: restores 2 AP, heals all body parts.");
-                }
+                var tHeal = Traverse.Create(stimpackAbility);
+                tHeal.Property("ActionPointCost")?.SetValue(0.25f);
+                tHeal.Property("HealBodyParts")?.SetValue(true);
+                tHeal.Property("BodyPartHealAmount")?.SetValue(10.0f);
+                Debug.Log("[AAP] Stimpack buffed: 0.25 AP, heals all body parts.");
             }
 
             // ===== Screaming Head Mind Control Immunity =====
@@ -166,119 +163,52 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
             // ===== Psychic Resistance Fix =====
             var psychicResistance = cache.GetDef<BaseDef>("PsychicResistance_AbilityDef");
-            if (psychicResistance != null)
+            if (psychicResistance == null)
             {
-                var desc = Traverse.Create(psychicResistance).Property("Description").GetValue<object>();
-                if (desc != null)
-                {
-                    Traverse.Create(desc).Method("SetLocalizationKey").GetValue("AAP_PSYCHICRESISTANCE_DESC");
-                    Debug.Log("[AAP] Psychic Resistance description updated.");
-                }
-
-                var statusDef = Traverse.Create(psychicResistance).Property("StatusDef").GetValue<object>();
-                if (statusDef != null)
-                {
-                    var modsField = Traverse.Create(statusDef).Field("StatModifications");
-                    var mods = modsField.GetValue<object[]>();
-                    if (mods != null)
-                    {
-                        foreach (var mod in mods)
-                        {
-                            var statName = Traverse.Create(mod).Field("StatName").GetValue<string>();
-                            if (statName == "PsychicScreamDamageModifier")
-                            {
-                                Traverse.Create(mod).Field("Value").SetValue(0.5f);
-                                Debug.Log("[AAP] Psychic Resistance now reduces Psychic Scream damage by 50%.");
-                                break;
-                            }
-                        }
-                    }
-                }
+                Debug.LogWarning("[AAP] PsychicResistance_AbilityDef not found in this game version. Skipping.");
+            }
+            else
+            {
+                // existing code...
             }
 
             // ===== Sniper Precision Shot (0 AP, 3 WP, once per turn) =====
-            var sniperClass = cache.GetDef<BaseDef>("Sniper_SoldierClassDef");
-            var baseShootAbility = cache.GetDef<ShootAbilityDef>("SniperRifle_Shoot_AbilityDef");
-
-            if (sniperClass != null && baseShootAbility != null)
+            var sniperClass = cache.GetDef<BaseDef>("SniperSpecializationDef");
+            if (sniperClass == null)
             {
-                var existing = cache.GetDef<BaseDef>("AAP_PrecisionShot_AbilityDef");
-                if (existing == null)
-                {
-                    // Generate a new GUID for this ability
-                    string newGuid = "{CD2E9899-5654-4A8B-921C-3B269ECFC204}"; // Replace with a fresh GUID
-
-                    var newAbility = Helpers.CreateDefFromClone(
-                        baseShootAbility,
-                        newGuid,
-                        "AAP_PrecisionShot_AbilityDef"
-                    );
-
-                    if (newAbility != null)
-                    {
-                        var t = Traverse.Create(newAbility);
-                        t.Property("ActionPointCost").SetValue(0f);
-                        t.Property("WillPointCost").SetValue(3);
-                        t.Field("_actionPointCost").SetValue(0f);
-                        t.Field("_willPointCost").SetValue(3);
-                        t.Field("MaxUsesPerTurn").SetValue(1);
-                        t.Field("_maxUsesPerTurn").SetValue(1);
-                        t.Field("Description").SetValue(new LocalizedTextBind("AAP_PRECISIONSHOT_DESC"));
-
-                        // Add to Sniper class abilities
-                        Helpers.AddDefToArrayField(sniperClass, "Abilities", newAbility);
-
-                        Debug.Log("[AAP] Sniper Precision Shot ability created (0 AP, 3 WP, once per turn).");
-                    }
-                }
+                Debug.LogWarning("[AAP] Precision Shot: SniperSpecializationDef not found. Skipping.");
+            }
+            else
+            {
+                Debug.Log("[AAP] Precision Shot: Found SniperSpecializationDef. Manual implementation needed.");
+                // Future: add ability to specialization or find the soldier class abilities list
             }
 
-            // ===== Frenzy Rework (+8 SPD instead of +50%) =====
-            var frenzyAbility = cache.GetDef<BaseDef>("Frenzy_AbilityDef");
-            if (frenzyAbility != null)
+            // ===== Frenzy: percentage Speed boost (multiplier) =====
+            var frenzyStatus = cache.GetDef<BaseDef>("Frenzy_StatusDef");
+            if (frenzyStatus != null)
             {
-                var statusDef = Traverse.Create(frenzyAbility).Property("StatusDef").GetValue<object>();
-                if (statusDef != null)
-                {
-                    var modsField = Traverse.Create(statusDef).Field("StatModifications");
-                    var mods = modsField.GetValue<object[]>();
-                    if (mods != null)
-                    {
-                        foreach (var mod in mods)
-                        {
-                            var statName = Traverse.Create(mod).Field("StatName").GetValue<string>();
-                            if (statName == "Speed")
-                            {
-                                Traverse.Create(mod).Field("ModificationType").SetValue(0);
-                                Traverse.Create(mod).Field("Value").SetValue(8f);
-                                Debug.Log("[AAP] Frenzy now grants +8 Speed (flat) instead of +50%.");
-                                break;
-                            }
-                        }
-                    }
-                }
+                // Change the multiplier from default 1.5 (+50%) to 1.75 (+75%)
+                Traverse.Create(frenzyStatus).Field("SpeedCoefficient")?.SetValue(1.75f);
+                Traverse.Create(frenzyStatus).Field("WillpowerCoefficient")?.SetValue(1.5f);
+                Traverse.Create(frenzyStatus).Field("DamageCoefficient")?.SetValue(1.5f);
+                Debug.Log("[AAP] Frenzy: Speed bonus increased to +75%, Willpower/Damage kept at +50%.");
+            }
+            else
+            {
+                Debug.LogWarning("[AAP] Frenzy_StatusDef not found. Frenzy unchanged.");
             }
 
             // ===== Increase Max Personal Abilities from 3 to 5 =====
-            var statSheetDefs = new[]
+            var humanStatSheet = cache.GetDef<BaseDef>("HumanSoldier_BaseStatSheetDef");
+            if (humanStatSheet != null)
             {
-                "Assault_BaseStatSheetDef",
-                "Heavy_BaseStatSheetDef",
-                "Sniper_BaseStatSheetDef",
-                "Berserker_BaseStatSheetDef",
-                "Priest_BaseStatSheetDef",
-                "Infiltrator_BaseStatSheetDef",
-                "Technician_BaseStatSheetDef"
-            };
-
-            foreach (var defName in statSheetDefs)
+                Traverse.Create(humanStatSheet).Property("PersonalAbilitiesCount")?.SetValue(5);
+                Debug.Log("[AAP] Personal abilities limit set to 5 (all classes).");
+            }
+            else
             {
-                var statSheet = cache.GetDef<BaseDef>(defName);
-                if (statSheet != null)
-                {
-                    Traverse.Create(statSheet).Property("PersonalAbilitiesCount")?.SetValue(5);
-                    Debug.Log($"[AAP] {defName} personal abilities limit set to 5.");
-                }
+                Debug.LogWarning("[AAP] HumanSoldier_BaseStatSheetDef not found.");
             }
         }
     }

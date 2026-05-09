@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using I2.Loc;
 
 namespace SergeyWaytov.AssortedAdjustmentsProject
 {
@@ -20,7 +21,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
         // Fixed campaign template for Jacob – used by the runtime tutorial fix
         public static TacCharacterDef JacobsFixedTemplate { get; private set; }
-
+        //public static bool DiagnosticsEnabled = false;   // turn on only when needed
         public override void OnModEnabled()
         {
             Debug.Log("=========================================");
@@ -29,12 +30,18 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
             DefCache = new DefCache();
 
+
+            //DefNameScanner.Run();
+           
             AbilityAdjustments.Apply(DefCache);
+            //SniperPrecisionShotAbility.Apply(DefCache);
+            PrecisionShot.Apply(DefCache);
+            PsychicBuffManager.Init();
             WeaponAdjustments.Apply(DefCache);
             ArmorAdjustments.Apply(DefCache);
             GeoscapeFacilitiesAdjustments.Apply(DefCache);
             VehicleAdjustments.Apply(DefCache);
-            AmbushChances.Apply(DefCache);
+            
             LootMechanics.Apply(DefCache);
             RepairCosts.Apply(DefCache);
 
@@ -43,7 +50,9 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
             harmony = new Harmony("SergeyWaytov_AssortedAdjustmentsProject");
             harmony.PatchAll();   // Applies all patches, including TutorialJacobFixPatch
-
+            I2.Loc.LocalizationManager.LocalizeAll(true);
+            Debug.Log("[AAP] Precision Shot name: " + ModMain.Localize("PRECISION_SHOT"));
+            Debug.Log("[AAP] Precision Shot desc: " + ModMain.Localize("PRECISION_SHOT_DESC"));
             Debug.Log("[AAP] Mod initialization complete.");
         }
 

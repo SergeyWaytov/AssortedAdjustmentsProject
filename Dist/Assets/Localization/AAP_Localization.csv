@@ -8,4 +8,5 @@ AAP_PersonalAbilities,Text,,PERSONAL ABILITIES,ЛИЧНЫЕ СПОСОБНОСТ
 AAP_Repairing,Text,,REPAIRING:,РЕМОНТ:
 AAP_Excavating,Text,,EXCAVATING:,РАСКОПКИ:
 AAP_WillAttack,Text,,WILL ATTACK:,АТАКУЕТ:
-AAP_PRECISIONSHOT_DESC,Text,,Take a carefully aimed shot with your proficient weapon for 0 Action Points. Costs 3 Will Points. Can be used once per turn.,Тщательно прицельный выстрел из основного оружия за 0 ОД. Стоит 3 ОВ. Можно использовать один раз за ход.
+AAP_PRECISION_SHOT,Ability Name,,Precision Shot,Точный выстрел
+AAP_PRECISION_SHOT_DESC,Ability Description,,The next attack costs 0 AP and gains +20% accuracy. Costs 4 WP. Limited to 1 use per turn.,Следующая атака стоит 0 ОД и получает +20% меткости. Стоит 4 В. Один раз за ход.
