@@ -3,8 +3,11 @@ using Base.Defs;
 using Base.Entities.Abilities;
 using Base.Entities.Statuses;
 using Base.UI;
+using HarmonyLib;
+using PhoenixPoint.Common.Entities.GameTags;
 using PhoenixPoint.Common.UI;
 using PhoenixPoint.Tactical.Entities.Abilities;
+using PhoenixPoint.Tactical.Entities.Animations;
 using PhoenixPoint.Tactical.Entities.Statuses;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,7 +31,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 "AAP_PrecisionShot_AbilityDef") as ApplyStatusAbilityDef;
             if (precisionShot == null) return;
 
-            // Clone the view element so we don't corrupt Quick Aim
+            // Clone the view element so we don’t corrupt Quick Aim
             precisionShot.ViewElementDef = Helpers.CreateDefFromClone(
                 quickAim.ViewElementDef,
                 "e5f6a7b8-c9d0-4e1a-9bcd-ef0123456789",
@@ -45,6 +48,11 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             precisionShot.WillPointCost = 4f;
             precisionShot.UsesPerTurn = 1;
             precisionShot.ShowNotificationOnUse = true;
+
+            // ---- FACTION RESTRICTION: Phoenix only ----
+            var phoenixTag = cache.GetDef<GameTagDef>("PhoenixPoint_UniformTagDef");
+            if (phoenixTag != null)
+                precisionShot.ActorTags = new GameTagDef[] { phoenixTag };
 
             // Cost modifier
             var qaCostMod = cache.GetDef<ChangeAbilitiesCostStatusDef>(
@@ -88,6 +96,27 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             psBoost.ShowNotification = true;
 
             precisionShot.StatusDef = psBoost;
+
+            // ---- ANIMATION: copy QuickAim's AnimActionDef ----
+            var repo = GameUtl.GameComponent<DefRepository>();
+            var animAction = Traverse.Create(quickAim).Field("AnimActionDef")
+                .GetValue<TacActorSimpleAbilityAnimActionDef>();
+            if (animAction != null)
+            {
+                // Set the same animation controller on PrecisionShot
+                Traverse.Create(precisionShot).Field("AnimActionDef").SetValue(animAction);
+
+                // Also add the new ability to the animation's list
+                if (!animAction.AbilityDefs.Contains(precisionShot))
+                {
+                    animAction.AbilityDefs = animAction.AbilityDefs.Append(precisionShot).ToArray();
+                    Debug.Log("[AAP] Linked Precision Shot animation to " + animAction.name);
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[AAP] QuickAim has no AnimActionDef – Precision Shot will have no animation.");
+            }
 
             // === MODIFY SNIPER CLASS ===
             var sniperClass = cache.GetDef<ClassProficiencyAbilityDef>("Sniper_ClassProficiency_AbilityDef");
