@@ -144,52 +144,42 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
         }
 
-        // Defense scheduled tracker
+        // ========== Defence scheduled tracker – robust version ==========
         [HarmonyPatch]
         public static class OnDefenseScheduledPatch
         {
-            private static bool patchDisabled = false;
-
-            [HarmonyPrepare]
-            public static bool Prepare()
-            {
-                var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.Levels.GeoscapeLog");
-                if (type == null)
-                {
-                    Debug.LogWarning("[AAP] ExtendedAgendaTracker: GeoscapeLog type not found. OnDefenseScheduled patch disabled.");
-                    patchDisabled = true;
-                    return false;
-                }
-                var method = AccessTools.Method(type, "ShowSiteDefenseTimer");
-                if (method == null)
-                {
-                    Debug.LogWarning("[AAP] ExtendedAgendaTracker: ShowSiteDefenseTimer method not found. Patch disabled.");
-                    patchDisabled = true;
-                    return false;
-                }
-                return true;
-            }
-
             [HarmonyTargetMethod]
-            public static MethodBase TargetMethod()
+            public static System.Reflection.MethodBase TargetMethod()
             {
-                if (patchDisabled) return null;
-                var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.Levels.GeoscapeLog");
-                return AccessTools.Method(type, "ShowSiteDefenseTimer");
+                // This method is called every time an attack is scheduled against a Phoenix base or Ancient site.
+                return AccessTools.Method("PhoenixPoint.Geoscape.Levels.Factions.GeoPhoenixFaction:AddDefenseTimer");
             }
 
             [HarmonyPostfix]
-            public static void Postfix(GeoFaction faction, SiteAttackSchedule target)
+            public static void Postfix(GeoFaction faction, object target)
             {
-                if (patchDisabled) return;
                 try
                 {
-                    if (factionTracker == null || target?.Site == null) return;
-                    string icon = target.Site.IsArcheologySite ? "ArcheologyLab_PhoenixFacilityDef" : "Crabman_ActorViewDef";
-                    string factionName = faction?.Name?.Localize(null) ?? faction?.Name?.ToString() ?? "???";
-                    AddOrUpdate(target.Site, $"{factionName.ToUpperInvariant()} {ActionAttack} {target.Site.LocalizedSiteName}", icon);
+                    if (factionTracker == null) return;
+
+                    // The 'target' parameter is a SiteAttackSchedule object.
+                    SiteAttackSchedule sch = target as SiteAttackSchedule;
+                    if (sch == null || sch.Site == null) return;
+
+                    string siteName = sch.Site.LocalizedSiteName;
+                    if (string.IsNullOrEmpty(siteName)) return;
+
+                    string factionName = faction?.Name?.Localize(null) ?? "???";
+                    string text = $"{factionName.ToUpperInvariant()} {ModMain.Localize("WillAttack")} {siteName}";
+
+                    string iconDefName = sch.Site.IsArcheologySite ? "ArcheologyLab_PhoenixFacilityDef" : "Crabman_ActorViewDef";
+
+                    AddOrUpdate(sch.Site, text, iconDefName);
                 }
-                catch (Exception e) { Debug.LogError($"[AAP] OnDefenseScheduled failed: {e.Message}"); }
+                catch (System.Exception e)
+                {
+                    Debug.LogError($"[AAP] OnDefenseScheduled failed: {e.Message}");
+                }
             }
         }
         /*

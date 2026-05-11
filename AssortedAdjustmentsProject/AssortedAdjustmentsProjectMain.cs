@@ -40,14 +40,14 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             //DefNameScanner.Run();
 
             AbilityAdjustments.Apply(DefCache);
-            //SniperPrecisionShotAbility.Apply(DefCache);
+            RageBurstPatch.Apply(DefCache);
             PrecisionShot.Apply(DefCache);
             PsychicBuffManager.Init();
             WeaponAdjustments.Apply(DefCache);
             ArmorAdjustments.Apply(DefCache);
             GeoscapeFacilitiesAdjustments.Apply(DefCache);
             VehicleAdjustments.Apply(DefCache);
-           
+            
             LootMechanics.Apply(DefCache);
             RepairCosts.Apply(DefCache);
 

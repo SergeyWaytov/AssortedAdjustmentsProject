@@ -39,15 +39,19 @@
 		<Compile Include="GeoscapeFacilitiesPatches.cs" />
 		<Compile Include="Helpers.cs" />
 		<Compile Include="LootMechanics.cs" />
+		<Compile Include="PoisonReworkEnforcer.cs" />
 		<Compile Include="PrecisionShot.cs" />
 		<Compile Include="Properties\AssemblyInfo.cs" />
 		<Compile Include="PsychicBuffManager.cs" />
 		<Compile Include="PsychicResearchConditions.cs" />
+		<Compile Include="RageBurstPatch.cs" />
+		<Compile Include="RegenTorsoEnforcer.cs" />
 		<Compile Include="RepairCosts.cs" />
 		<Compile Include="ResearchCompletePopupPatch.cs" />
 		<Compile Include="ReturnFirePatch.cs" />
 		<Compile Include="ScrapAircraftFix.cs" />
 		<Compile Include="SquadEvacPatch.cs" />
+		<Compile Include="StatEnforcer.cs" />
 		<Compile Include="TutorialJacobFixPatch.cs" />
 		<Compile Include="UIPatches.cs" />
 		<Compile Include="UI_ExtendedAgendaTracker.cs" />
@@ -55,6 +59,7 @@
 		<Compile Include="UI_RecruitInfo.cs" />
 		<Compile Include="UI_SmartBaseSelection.cs" />
 		<Compile Include="VehiclePatches.cs" />
+		<Compile Include="VenomTorsoEnforcer.cs" />
 		<Compile Include="WeaponPatches.cs" />
 		<Compile Include="WPCostDiscovery.cs" />
 	</ItemGroup>
