@@ -18,10 +18,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 {
     public static class PrecisionShot
     {
-        // GUIDs for the created defs (not strictly needed but kept for legacy)
         private const string PrecisionShotGuid = "a1b2c3d4-e5f6-4789-abcd-ef0123456789";
-
-        // Static reference to the ability‑granting status – stored after creation
         private static AddAbilityStatusDef _precisionShotAdder;
 
         public static void Apply(DefCache cache)
@@ -41,7 +38,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 ) as ApplyStatusAbilityDef;
                 if (precisionShot == null) return;
 
-                // View element – set name & description
                 precisionShot.ViewElementDef = Helpers.CreateDefFromClone(
                     quickAim.ViewElementDef,
                     "e5f6a7b8-c9d0-4e1a-bcde-ef0123456789",
@@ -58,7 +54,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 precisionShot.UsesPerTurn = 1;
                 precisionShot.ShowNotificationOnUse = true;
 
-                // Only Phoenix faction (player) can use it (though enemies won't get it anyway)
                 var phoenixTag = cache.GetDef<GameTagDef>("PhoenixPoint_UniformTagDef");
                 precisionShot.ActorTags = new GameTagDef[] { phoenixTag };
 
@@ -70,16 +65,19 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 ) as AddAbilityStatusDef;
 
                 addAbilityStatus.AbilityDef = precisionShot;
-                addAbilityStatus.DurationTurns = -1;          // permanent
+                addAbilityStatus.DurationTurns = -1;
                 addAbilityStatus.ExpireOnEndOfTurn = false;
                 addAbilityStatus.SingleInstance = true;
                 addAbilityStatus.ShowNotification = false;
-                addAbilityStatus.VisibleOnPassiveBar = true;   // visible in soldier info
+                addAbilityStatus.VisibleOnPassiveBar = true;
 
-                // Store for the harmony patch
+                // ---------- CRITICAL FIX: give the status a visual with a SmallIcon ----------
+                addAbilityStatus.Visuals = precisionShot.ViewElementDef;
+                // -------------------------------------------------------------------------
+
                 _precisionShotAdder = addAbilityStatus;
 
-                // ---- 3. Animation (same as Quick Aim) ----
+                // ---- 3. Animation ----
                 var repo = GameUtl.GameComponent<DefRepository>();
                 var animAction = repo.GetAllDefs<TacActorSimpleAbilityAnimActionDef>()
                     .FirstOrDefault(a => a.name.Contains("Soldier_Utka_AnimActionsDef") &&
@@ -117,24 +115,20 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             {
                 try
                 {
-                    // Only player faction
                     var viewer = __instance.TacticalLevel?.View?.ViewerFaction;
                     if (viewer == null || __instance.TacticalFaction != viewer)
                         return;
 
-                    // Only Snipers (class tag)
                     var sniperTag = ModMain.DefCache?.GetDef<GameTagDef>("Sniper_ClassTagDef");
                     if (sniperTag == null || !__instance.HasGameTag(sniperTag))
                         return;
 
-                    // Use the stored adder (no cache lookup!)
                     if (_precisionShotAdder == null)
                     {
                         Debug.LogWarning("[AAP] PrecisionShot: adder status not created yet.");
                         return;
                     }
 
-                    // Apply if not already present
                     if (!__instance.Status.HasStatus(_precisionShotAdder))
                     {
                         __instance.Status.ApplyStatus(_precisionShotAdder);
