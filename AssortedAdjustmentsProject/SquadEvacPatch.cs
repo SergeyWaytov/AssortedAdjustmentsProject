@@ -1,69 +1,36 @@
 ﻿using Base.Core;
-using Base.UI.MessageBox;
 using HarmonyLib;
-using System;
-using System.Collections.Generic;
-using System.Reflection;
-using UnityEngine;
+using PhoenixPoint.Tactical.Entities;
+using PhoenixPoint.Tactical.Entities.Abilities;
+using PhoenixPoint.Tactical.Entities.Statuses;
+using System.Linq;
 
 namespace SergeyWaytov.AssortedAdjustmentsProject
 {
-    [HarmonyPatch]
+    [HarmonyPatch(typeof(TacticalAbility), "Activate")]
     public static class SquadEvacPatch
     {
-        [HarmonyTargetMethod]
-        public static MethodBase TargetMethod()
+        static void Prefix(TacticalAbility __instance)
         {
-            var type = AccessTools.TypeByName("PhoenixPoint.Tactical.View.TacticalView");
-            return AccessTools.Method(type, "OnAbilityExecuted");
-        }
+            if (__instance.TacticalAbilityDef.name != "ExitMission_AbilityDef")
+                return;
+            if (!__instance.TacticalActor.TacticalFaction.IsControlledByPlayer)
+                return;
 
-        [HarmonyPrefix]
-        public static bool Prefix(object __instance, object ability)
-        {
-            try
+            var faction = __instance.TacticalActor.TacticalFaction;
+            foreach (var actor in faction.GetOwnedActors<TacticalActor>().ToList())
             {
-                var abilityName = Traverse.Create(ability).Field("name").GetValue<string>();
-                if (abilityName != "ExitMission_AbilityDef")
-                    return true;
+                if (actor == __instance.TacticalActor) continue;
+                if (actor.IsMounted) continue;
+                if (actor.Status.HasStatus<EvacuatedStatus>()) continue;
 
-                var traverse = Traverse.Create(__instance);
-                var actor = Traverse.Create(ability).Property("Actor").GetValue<object>();
-                var squad = traverse.Property("CurrentSquad").GetValue<IEnumerable<object>>();
-
-                if (squad == null)
-                    return true;
-
-                var messageBox = GameUtl.GetMessageBox();
-                messageBox.ShowSimplePrompt(
-                    "Evacuate entire squad?",
-                    MessageBoxIcon.Question,
-                    MessageBoxButtons.YesNo,
-                    result =>
-                    {
-                        if (result.DialogResult == MessageBoxResult.Yes)
-                        {
-                            foreach (var member in squad)
-                            {
-                                var exitAbility = Traverse.Create(member).Method("GetAbility", new[] { typeof(string) })
-                                    .GetValue<object>("ExitMission_AbilityDef");
-                                if (exitAbility != null)
-                                {
-                                    Traverse.Create(exitAbility).Method("Activate").GetValue();
-                                }
-                            }
-                        }
-                    },
-                    null
-                );
-
-                return false;
+                // Try to get the evacuate ability by def, then activate it
+                var exitAbility = actor.GetAbilities<TacticalAbility>()
+                    .FirstOrDefault(ab => ab.TacticalAbilityDef.name == "ExitMission_AbilityDef");
+                if (exitAbility != null && exitAbility.IsEnabled())
+                    exitAbility.Activate();
             }
-            catch (Exception e)
-            {
-                Debug.LogError($"[AAP] SquadEvacPatch failed: {e.Message}");
-                return true;
-            }
+            // The original evac still happens after this prefix.
         }
     }
 }
