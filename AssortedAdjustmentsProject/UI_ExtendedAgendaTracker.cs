@@ -46,7 +46,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             disposeElementMethod = t.GetMethod("Dispose", BindingFlags.NonPublic | BindingFlags.Instance);
         }
 
-        // CacheTracker
         [HarmonyPatch]
         public static class CacheTrackerPatch
         {
@@ -68,7 +67,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
         }
 
-        // ===== OnExcavationStarted (fault‑tolerant) =====
         [HarmonyPatch]
         public static class OnExcavationStartedPatch
         {
@@ -77,7 +75,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             [HarmonyPrepare]
             public static bool Prepare()
             {
-                // Correct type: PhoenixPoint.Geoscape.Levels.GeoscapeLog
                 var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.Levels.GeoscapeLog");
                 if (type == null)
                 {
@@ -116,7 +113,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
         }
 
-        // OnExcavationComplete
         [HarmonyPatch]
         public static class OnExcavationCompletePatch
         {
@@ -131,7 +127,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
         }
 
-        // ===== OnDefenseScheduled (fault‑tolerant) =====
         [HarmonyPatch]
         public static class OnDefenseScheduledPatch
         {
@@ -140,7 +135,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             [HarmonyPrepare]
             public static bool Prepare()
             {
-                // Correct type: PhoenixPoint.Geoscape.Levels.GeoscapeLog
                 var type = AccessTools.TypeByName("PhoenixPoint.Geoscape.Levels.GeoscapeLog");
                 if (type == null)
                 {
@@ -182,7 +176,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
         }
 
-        // AddRepairTrackers
         [HarmonyPatch]
         public static class AddRepairTrackersPatch
         {
@@ -209,32 +202,43 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
         private static void AddOrUpdate(object obj, string text, string iconDefName)
         {
-            if (factionTracker == null) return;
-            var elements = (List<UIFactionDataTrackerElement>)AccessTools.Field(typeof(UIModuleFactionAgendaTracker), "_currentTrackedElements").GetValue(factionTracker);
-            foreach (var e in elements) { if (e.TrackedObject == obj) { e.TrackedName.text = text; updateDataMethod?.Invoke(factionTracker, null); return; } }
-            var viewDef = GameUtl.GameComponent<DefRepository>().DefRepositoryDef.AllDefs.OfType<ViewElementDef>().FirstOrDefault(d => d.name.Contains(iconDefName));
-            var free = (UIFactionDataTrackerElement)getFreeElementMethod?.Invoke(factionTracker, null);
-            if (free != null) { free.Init(obj, text, viewDef, false); onAddedElementMethod?.Invoke(factionTracker, new[] { free }); }
+            try
+            {
+                if (factionTracker == null) return;
+                var elements = (List<UIFactionDataTrackerElement>)AccessTools.Field(typeof(UIModuleFactionAgendaTracker), "_currentTrackedElements").GetValue(factionTracker);
+                foreach (var e in elements) { if (e.TrackedObject == obj) { e.TrackedName.text = text; updateDataMethod?.Invoke(factionTracker, null); return; } }
+                var viewDef = GameUtl.GameComponent<DefRepository>().DefRepositoryDef.AllDefs.OfType<ViewElementDef>().FirstOrDefault(d => d.name.Contains(iconDefName));
+                var free = (UIFactionDataTrackerElement)getFreeElementMethod?.Invoke(factionTracker, null);
+                if (free != null) { free.Init(obj, text, viewDef, false); onAddedElementMethod?.Invoke(factionTracker, new[] { free }); }
+            }
+            catch (Exception e) { Debug.LogError($"[AAP] AddOrUpdate(string) failed: {e.Message}"); }
         }
 
         private static void AddOrUpdate(object obj, string text, ViewElementDef viewDef)
         {
-            if (factionTracker == null) return;
-            var elements = (List<UIFactionDataTrackerElement>)AccessTools.Field(typeof(UIModuleFactionAgendaTracker), "_currentTrackedElements").GetValue(factionTracker);
-            foreach (var e in elements) { if (e.TrackedObject == obj) { e.TrackedName.text = text; updateDataMethod?.Invoke(factionTracker, null); return; } }
-            var free = (UIFactionDataTrackerElement)getFreeElementMethod?.Invoke(factionTracker, null);
-            if (free != null) { free.Init(obj, text, viewDef, false); onAddedElementMethod?.Invoke(factionTracker, new[] { free }); }
+            try
+            {
+                if (factionTracker == null) return;
+                var elements = (List<UIFactionDataTrackerElement>)AccessTools.Field(typeof(UIModuleFactionAgendaTracker), "_currentTrackedElements").GetValue(factionTracker);
+                foreach (var e in elements) { if (e.TrackedObject == obj) { e.TrackedName.text = text; updateDataMethod?.Invoke(factionTracker, null); return; } }
+                var free = (UIFactionDataTrackerElement)getFreeElementMethod?.Invoke(factionTracker, null);
+                if (free != null) { free.Init(obj, text, viewDef, false); onAddedElementMethod?.Invoke(factionTracker, new[] { free }); }
+            }
+            catch (Exception e) { Debug.LogError($"[AAP] AddOrUpdate(viewDef) failed: {e.Message}"); }
         }
 
         private static void Remove(object obj)
         {
-            if (factionTracker == null) return;
-            var elements = (List<UIFactionDataTrackerElement>)AccessTools.Field(typeof(UIModuleFactionAgendaTracker), "_currentTrackedElements").GetValue(factionTracker);
-            foreach (var e in elements) { if (e.TrackedObject == obj) { disposeElementMethod?.Invoke(factionTracker, new[] { e }); break; } }
-            updateDataMethod?.Invoke(factionTracker, null);
+            try
+            {
+                if (factionTracker == null) return;
+                var elements = (List<UIFactionDataTrackerElement>)AccessTools.Field(typeof(UIModuleFactionAgendaTracker), "_currentTrackedElements").GetValue(factionTracker);
+                foreach (var e in elements) { if (e.TrackedObject == obj) { disposeElementMethod?.Invoke(factionTracker, new[] { e }); break; } }
+                updateDataMethod?.Invoke(factionTracker, null);
+            }
+            catch (Exception e) { Debug.LogError($"[AAP] Remove failed: {e.Message}"); }
         }
 
-        // UpdateDataPrefix
         [HarmonyPatch]
         public static class UpdateDataPrefixPatch
         {
@@ -270,7 +274,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
         }
 
-        // AddClickToFocus
         [HarmonyPatch]
         public static class AddClickToFocusPatch
         {
@@ -287,7 +290,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                     var et = go.GetComponent<EventTrigger>() ?? go.AddComponent<EventTrigger>();
                     et.triggers.Clear();
                     var click = new EventTrigger.Entry { eventID = EventTriggerType.PointerClick };
-                    click.callback.AddListener((_) => {
+                    click.callback.AddListener((_) =>
+                    {
                         switch (element.TrackedObject)
                         {
                             case GeoVehicle v: ____context.View.ChaseTarget(v, false); break;
@@ -303,7 +307,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
         }
 
-        // AddHoverEffect
         [HarmonyPatch]
         public static class AddHoverEffectPatch
         {

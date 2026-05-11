@@ -1,6 +1,7 @@
 ﻿using Base.Core;
 using Base.UI.MessageBox;
 using HarmonyLib;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
@@ -22,7 +23,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         {
             try
             {
-                // Check if the executed ability is ExitMission
                 var abilityName = Traverse.Create(ability).Field("name").GetValue<string>();
                 if (abilityName != "ExitMission_AbilityDef")
                     return true;
@@ -34,7 +34,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 if (squad == null)
                     return true;
 
-                // Show confirmation dialog (optional)
                 var messageBox = GameUtl.GetMessageBox();
                 messageBox.ShowSimplePrompt(
                     "Evacuate entire squad?",
@@ -58,9 +57,9 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                     null
                 );
 
-                return false; // Skip original individual evacuation
+                return false;
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
                 Debug.LogError($"[AAP] SquadEvacPatch failed: {e.Message}");
                 return true;
