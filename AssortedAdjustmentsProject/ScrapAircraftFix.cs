@@ -24,7 +24,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 {
     /// <summary>
     /// Allows scrapping of aircraft from the Personnel Roster screen.
-    /// Hardened version with null checks to prevent crashes.
+    /// Hardened version with extensive null checks to prevent crashes.
     /// </summary>
     internal static class EnableScrapAircraft
     {
@@ -33,7 +33,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         internal static string emptySlotDefaultText = "EMPTY";
         internal static string emptySlotScrapText = "SCRAP AIRCRAFT?";
 
-        // Container info for click events
         private class ContainerInfo
         {
             public string Name;
@@ -41,7 +40,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             public ContainerInfo(string n, int i) { Name = n; Index = i; }
         }
 
-        // MethodInfo for resource bar update (private, obtained once)
         internal static MethodInfo UpdateResourceInfoMethod =
             typeof(UIModuleInfoBar).GetMethod("UpdateResourceInfo",
                 BindingFlags.NonPublic | BindingFlags.Instance);
@@ -155,160 +153,170 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                     var geoRosterModule = traverse.Field("_geoRosterModule").GetValue<UIModuleGeneralPersonelRoster>();
                     var geoscapeModules = traverse.Field("_geoscapeModules").GetValue<GeoscapeModulesData>();
 
-                    // Basic null guards
                     if (context?.ViewerFaction == null || geoRosterModule?.Groups == null || geoscapeModules == null)
                         return;
 
-                    RefreshScrapTriggers();
-
-                    // Local function: apply scrap triggers to all empty aircraft slots
-                    void RefreshScrapTriggers()
-                    {
-                        if (geoRosterModule.Groups == null || geoRosterModule.Groups.Count == 0) return;
-
-                        for (int i = 0; i < geoRosterModule.Groups.Count; i++)
-                        {
-                            var c = geoRosterModule.Groups[i];
-                            if (c?.Container == null) continue;
-
-                            var emptySlot = Traverse.Create(c).Field("EmptySlot").GetValue<GameObject>();
-                            if (emptySlot == null) continue;
-
-                            // Add EventTrigger if missing
-                            var et = emptySlot.GetComponent<EventTrigger>() ?? emptySlot.AddComponent<EventTrigger>();
-                            et.triggers.Clear();
-
-                            // Refresh the container to get correct state
-                            c.Refresh();
-
-                            // Only apply to real vehicles (not personnel rows with int.MaxValue capacity)
-                            if (c.Container.MaxCharacterSpace == int.MaxValue) continue;
-
-                            var emptySlotText = emptySlot.GetComponentInChildren<Text>(true);
-                            var info = new ContainerInfo(c.Container.Name, i);
-
-                            // Pointer enter: highlight
-                            var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
-                            enter.callback.AddListener((_) =>
-                            {
-                                if (emptySlotText != null) emptySlotText.color = Color.red;
-                            });
-
-                            // Pointer exit: restore
-                            var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
-                            exit.callback.AddListener((_) =>
-                            {
-                                if (emptySlotText != null) emptySlotText.color = emptySlotDefaultColor;
-                            });
-
-                            // Click: attempt to scrap
-                            var click = new EventTrigger.Entry { eventID = EventTriggerType.PointerClick };
-                            click.callback.AddListener((_) => OnScrapAircraftClick(info));
-
-                            et.triggers.Add(enter);
-                            et.triggers.Add(exit);
-                            et.triggers.Add(click);
-                        }
-                    }
-
-                    // Scrap logic
-                    void OnScrapAircraftClick(ContainerInfo info)
-                    {
-                        try
-                        {
-                            if (context?.ViewerFaction?.Vehicles == null) return;
-
-                            var aircraft = context.ViewerFaction.Vehicles.FirstOrDefault(v => v.Name == info.Name);
-                            if (aircraft == null) return;
-
-                            var utils = geoscapeModules.GeoscapeScreenUtilsModule;
-                            string msg = utils.DismissVehiclePrompt.Localize(null);
-
-                            // Get scrap refund info
-                            var def = GameUtl.GameComponent<DefRepository>()
-                                .GetAllDefs<VehicleItemDef>()
-                                .FirstOrDefault(d => d.ComponentSetDef?.Components?.Contains(aircraft.VehicleDef) == true);
-
-                            if (def != null && !def.ScrapPrice.IsEmpty)
-                            {
-                                msg += "\n" + utils.ScrapResourcesBack.Localize(null) + "\n \n";
-                                foreach (var ru in def.ScrapPrice)
-                                {
-                                    if (ru.RoundedValue > 0)
-                                    {
-                                        string r = ru.Type switch
-                                        {
-                                            ResourceType.Supplies => utils.ScrapSuppliesResources.Localize(null),
-                                            ResourceType.Materials => utils.ScrapMaterialsResources.Localize(null),
-                                            ResourceType.Tech => utils.ScrapTechResources.Localize(null),
-                                            ResourceType.Mutagen => utils.ScrapMutagenResources.Localize(null),
-                                            _ => ""
-                                        };
-                                        msg += r.Replace("{0}", ru.RoundedValue.ToString());
-                                    }
-                                }
-                            }
-
-                            // Safety: prevent scrapping the last aircraft
-                            if (context.ViewerFaction.Vehicles.Count() <= 1)
-                            {
-                                GameUtl.GetMessageBox().ShowSimplePrompt(
-                                    "This is Phoenix Point's last aircraft available",
-                                    MessageBoxIcon.Error,
-                                    MessageBoxButtons.OK,
-                                    _ => { },
-                                    null);
-                                return;
-                            }
-
-                            GameUtl.GetMessageBox().ShowSimplePrompt(
-                                string.Format(msg, info.Name),
-                                MessageBoxIcon.Warning,
-                                MessageBoxButtons.YesNo,
-                                result =>
-                                {
-                                    if (result.DialogResult == MessageBoxResult.Yes)
-                                    {
-                                        try
-                                        {
-                                            aircraft.Travelling = true;
-                                            aircraft.Destroy();
-
-                                            // Refund resources
-                                            if (def != null && !def.ScrapPrice.IsEmpty)
-                                            {
-                                                context.Level.PhoenixFaction.Wallet.Give(
-                                                    def.ScrapPrice, OperationReason.Scrap);
-                                                UpdateResourceInfoMethod?.Invoke(
-                                                    geoscapeModules.ResourcesModule,
-                                                    new object[] { context.ViewerFaction, true });
-                                            }
-
-                                            // Remove from containers list and refresh UI
-                                            ____characterContainers.RemoveAt(info.Index);
-                                            geoRosterModule.Init(context, ____characterContainers,
-                                                null, ____preferableFilterMode,
-                                                RosterSelectionMode.SingleSelect);
-
-                                            RefreshScrapTriggers();
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            Debug.LogError($"[AAP] Scrap execution error: {ex.Message}");
-                                        }
-                                    }
-                                },
-                                info);
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.LogError($"[AAP] Scrap click error: {ex.Message}");
-                        }
-                    }
+                    RefreshScrapTriggers(geoRosterModule, context, geoscapeModules, ____characterContainers, ____preferableFilterMode);
                 }
                 catch (Exception e)
                 {
                     Debug.LogError($"[AAP] ScrapAircraft EnterState error: {e.Message}");
+                }
+            }
+
+            private static void RefreshScrapTriggers(
+                UIModuleGeneralPersonelRoster geoRosterModule,
+                GeoscapeViewContext context,
+                GeoscapeModulesData geoscapeModules,
+                List<IGeoCharacterContainer> characterContainers,
+                GeoRosterFilterMode preferFilterMode)
+            {
+                if (geoRosterModule.Groups == null) return;
+
+                for (int i = 0; i < geoRosterModule.Groups.Count; i++)
+                {
+                    var c = geoRosterModule.Groups[i];
+                    if (c?.Container == null) continue;
+
+                    var emptySlot = Traverse.Create(c).Field("EmptySlot").GetValue<GameObject>();
+                    if (emptySlot == null) continue;
+
+                    // Clean up old EventTrigger components to avoid duplicate listeners
+                    var existingTriggers = emptySlot.GetComponents<EventTrigger>();
+                    foreach (var et in existingTriggers)
+                        UnityEngine.Object.Destroy(et);
+
+                    // Only apply to real vehicles (not personnel rows with int.MaxValue capacity)
+                    if (c.Container.MaxCharacterSpace == int.MaxValue) continue;
+
+                    var etNew = emptySlot.AddComponent<EventTrigger>();
+                    var emptySlotText = emptySlot.GetComponentInChildren<Text>(true);
+                    var info = new ContainerInfo(c.Container.Name, i);
+                    var originalColor = emptySlotText != null ? emptySlotText.color : Color.white;
+
+                    // Pointer enter: highlight
+                    RegisterEvent(etNew, EventTriggerType.PointerEnter, (data) =>
+                    {
+                        if (emptySlotText != null) emptySlotText.color = Color.red;
+                    });
+
+                    // Pointer exit: restore
+                    RegisterEvent(etNew, EventTriggerType.PointerExit, (data) =>
+                    {
+                        if (emptySlotText != null) emptySlotText.color = originalColor;
+                    });
+
+                    // Click: attempt to scrap
+                    RegisterEvent(etNew, EventTriggerType.PointerClick, (data) =>
+                    {
+                        OnScrapAircraftClick(info, context, geoscapeModules, geoRosterModule, characterContainers, preferFilterMode);
+                    });
+                }
+            }
+
+            private static void RegisterEvent(EventTrigger trigger, EventTriggerType eventType, UnityEngine.Events.UnityAction<BaseEventData> action)
+            {
+                var entry = new EventTrigger.Entry { eventID = eventType };
+                entry.callback.AddListener(action);
+                trigger.triggers.Add(entry);
+            }
+
+            private static void OnScrapAircraftClick(
+                ContainerInfo info,
+                GeoscapeViewContext context,
+                GeoscapeModulesData geoscapeModules,
+                UIModuleGeneralPersonelRoster geoRosterModule,
+                List<IGeoCharacterContainer> characterContainers,
+                GeoRosterFilterMode preferFilterMode)
+            {
+                try
+                {
+                    if (context?.ViewerFaction?.Vehicles == null) return;
+
+                    var aircraft = context.ViewerFaction.Vehicles.FirstOrDefault(v => v.Name == info.Name);
+                    if (aircraft == null) return;
+
+                    var utils = geoscapeModules.GeoscapeScreenUtilsModule;
+                    string msg = utils.DismissVehiclePrompt.Localize(null);
+
+                    var def = GameUtl.GameComponent<DefRepository>()
+                        .GetAllDefs<VehicleItemDef>()
+                        .FirstOrDefault(d => d.ComponentSetDef?.Components?.Contains(aircraft.VehicleDef) == true);
+
+                    if (def != null && !def.ScrapPrice.IsEmpty)
+                    {
+                        msg += "\n" + utils.ScrapResourcesBack.Localize(null) + "\n \n";
+                        foreach (var ru in def.ScrapPrice)
+                        {
+                            if (ru.RoundedValue > 0)
+                            {
+                                string r = ru.Type switch
+                                {
+                                    ResourceType.Supplies => utils.ScrapSuppliesResources.Localize(null),
+                                    ResourceType.Materials => utils.ScrapMaterialsResources.Localize(null),
+                                    ResourceType.Tech => utils.ScrapTechResources.Localize(null),
+                                    ResourceType.Mutagen => utils.ScrapMutagenResources.Localize(null),
+                                    _ => ""
+                                };
+                                msg += r.Replace("{0}", ru.RoundedValue.ToString());
+                            }
+                        }
+                    }
+
+                    // Safety: prevent scrapping the last aircraft
+                    if (context.ViewerFaction.Vehicles.Count() <= 1)
+                    {
+                        GameUtl.GetMessageBox().ShowSimplePrompt(
+                            "This is Phoenix Point's last aircraft available",
+                            MessageBoxIcon.Error,
+                            MessageBoxButtons.OK,
+                            _ => { },
+                            null);
+                        return;
+                    }
+
+                    GameUtl.GetMessageBox().ShowSimplePrompt(
+                        string.Format(msg, info.Name),
+                        MessageBoxIcon.Warning,
+                        MessageBoxButtons.YesNo,
+                        result =>
+                        {
+                            if (result.DialogResult == MessageBoxResult.Yes)
+                            {
+                                try
+                                {
+                                    aircraft.Travelling = true;
+                                    aircraft.Destroy();
+
+                                    if (def != null && !def.ScrapPrice.IsEmpty)
+                                    {
+                                        context.Level.PhoenixFaction.Wallet.Give(
+                                            def.ScrapPrice, OperationReason.Scrap);
+                                        UpdateResourceInfoMethod?.Invoke(
+                                            geoscapeModules.ResourcesModule,
+                                            new object[] { context.ViewerFaction, true });
+                                    }
+
+                                    // Remove from containers list and refresh UI
+                                    characterContainers.RemoveAt(info.Index);
+                                    geoRosterModule.Init(context, characterContainers,
+                                        null, preferFilterMode,
+                                        RosterSelectionMode.SingleSelect);
+
+                                    // Reapply triggers after UI update
+                                    RefreshScrapTriggers(geoRosterModule, context, geoscapeModules, characterContainers, preferFilterMode);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.LogError($"[AAP] Scrap execution error: {ex.Message}");
+                                }
+                            }
+                        },
+                        info);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"[AAP] Scrap click error: {ex.Message}");
                 }
             }
         }

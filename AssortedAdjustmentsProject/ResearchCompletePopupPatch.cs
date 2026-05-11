@@ -115,6 +115,14 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             yield return null;
             yield return null; // wait two frames for UI to fully appear
 
+            // --- ADD THESE 4 LINES ---
+            if (instance == null || !instance.gameObject.activeInHierarchy)
+            {
+                Debug.Log("[AAP] InjectLore: UI instance null/inactive – aborting.");
+                yield break;
+            }
+            // --- END OF ADDITION ---
+
             var allText = UnityEngine.Object.FindObjectsOfType<Text>();
             Debug.Log($"[AAP] InjectLore: scanning {allText.Length} active Text objects...");
 

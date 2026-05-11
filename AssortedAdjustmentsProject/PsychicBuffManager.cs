@@ -1,5 +1,4 @@
-﻿// PsychicBuffManager.cs (Final – Approved design, 2026‑04‑27, with WP‑loss defence v3 and MC block)
-using Base.Core;
+﻿using Base.Core;
 using Base.Defs;
 using Base.Entities.Statuses;
 using HarmonyLib;
@@ -56,14 +55,21 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         [HarmonyPostfix]
         public static void Postfix(TacticalActor __instance)
         {
-            if (__instance.TacticalFaction != __instance.TacticalLevel?.View?.ViewerFaction) return;
-            var geoLevel = GameUtl.CurrentLevel()?.GetComponent<GeoLevelController>();
-            var geoChar = geoLevel?.PhoenixFaction?.Characters.FirstOrDefault(c => c.Id == __instance.GeoUnitId);
-            if (geoChar == null) return;
-            if (PsychicBuffManager.MindfraggerResearchCompleted && !__instance.GameTags.Contains(PsychicBuffManager.MindfraggerBonusTag))
-                __instance.AddGameTags(new GameTagsList() { PsychicBuffManager.MindfraggerBonusTag });
-            if (PsychicBuffManager.PsychicInfluencesCompleted && !__instance.GameTags.Contains(PsychicBuffManager.PsychicInfluencesTag))
-                __instance.AddGameTags(new GameTagsList() { PsychicBuffManager.PsychicInfluencesTag });
+            try
+            {
+                if (__instance.TacticalFaction != __instance.TacticalLevel?.View?.ViewerFaction) return;
+                var geoLevel = GameUtl.CurrentLevel()?.GetComponent<GeoLevelController>();
+                var geoChar = geoLevel?.PhoenixFaction?.Characters.FirstOrDefault(c => c.Id == __instance.GeoUnitId);
+                if (geoChar == null) return;
+                if (PsychicBuffManager.MindfraggerResearchCompleted && !__instance.GameTags.Contains(PsychicBuffManager.MindfraggerBonusTag))
+                    __instance.AddGameTags(new GameTagsList() { PsychicBuffManager.MindfraggerBonusTag });
+                if (PsychicBuffManager.PsychicInfluencesCompleted && !__instance.GameTags.Contains(PsychicBuffManager.PsychicInfluencesTag))
+                    __instance.AddGameTags(new GameTagsList() { PsychicBuffManager.PsychicInfluencesTag });
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AAP] PsychicTagInheritance_Patch failed: {e.Message}");
+            }
         }
     }
 
@@ -75,30 +81,45 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     {
         static bool Prefix(TacticalAbility __instance)
         {
-            if (!PsychicBuffManager.PsychicInfluencesCompleted) return true;
-            if (!IsOffensivePsychic(__instance.TacticalAbilityDef.name)) return true;
-            var caster = __instance.TacticalActor;
-            if (caster == null || !caster.GameTags.Contains(PsychicBuffManager.PsychicInfluencesTag)) return true;
+            try
+            {
+                if (!PsychicBuffManager.PsychicInfluencesCompleted) return true;
+                if (!IsOffensivePsychic(__instance.TacticalAbilityDef.name)) return true;
+                var caster = __instance.TacticalActor;
+                if (caster == null || !caster.GameTags.Contains(PsychicBuffManager.PsychicInfluencesTag)) return true;
 
-            var wp = caster.CharacterStats.WillPoints;
-            float savedMax = wp.Max, savedCurrent = wp.Value;
-            PsychicBuffManager.offensiveSwitcheroo[__instance] = (savedMax, savedCurrent);
-            wp.Set(savedMax + 30f, false);
-            wp.Set(savedCurrent + 30f, false);
-            Debug.Log($"[AAP] Offensive WP boost: {__instance.TacticalAbilityDef.name} cast by {caster.DisplayName} (WP {savedCurrent}/{savedMax} → {wp.Value}/{wp.Max})");
-            return true;
+                var wp = caster.CharacterStats.WillPoints;
+                float savedMax = wp.Max, savedCurrent = wp.Value;
+                PsychicBuffManager.offensiveSwitcheroo[__instance] = (savedMax, savedCurrent);
+                wp.Set(savedMax + 30f, false);
+                wp.Set(savedCurrent + 30f, false);
+                Debug.Log($"[AAP] Offensive WP boost: {__instance.TacticalAbilityDef.name} cast by {caster.DisplayName} (WP {savedCurrent}/{savedMax} → {wp.Value}/{wp.Max})");
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AAP] OffensivePsychicApplyCosts_Patch.Prefix failed: {e.Message}");
+                return true;
+            }
         }
 
         static void Postfix(TacticalAbility __instance)
         {
-            if (!PsychicBuffManager.offensiveSwitcheroo.TryGetValue(__instance, out var saved)) return;
-            var wp = __instance.TacticalActor.CharacterStats.WillPoints;
-            float costPaid = saved.savedCurrent - (wp.Value - 30f);
-            if (costPaid < 0f) costPaid = 0f;
-            wp.Set(saved.savedMax, false);
-            wp.Set(saved.savedCurrent - costPaid, false);
-            PsychicBuffManager.offensiveSwitcheroo.Remove(__instance);
-            Debug.Log($"[AAP] Offensive WP restored: cost = {costPaid}, WP now {wp.Value}/{wp.Max}");
+            try
+            {
+                if (!PsychicBuffManager.offensiveSwitcheroo.TryGetValue(__instance, out var saved)) return;
+                var wp = __instance.TacticalActor.CharacterStats.WillPoints;
+                float costPaid = saved.savedCurrent - (wp.Value - 30f);
+                if (costPaid < 0f) costPaid = 0f;
+                wp.Set(saved.savedMax, false);
+                wp.Set(saved.savedCurrent - costPaid, false);
+                PsychicBuffManager.offensiveSwitcheroo.Remove(__instance);
+                Debug.Log($"[AAP] Offensive WP restored: cost = {costPaid}, WP now {wp.Value}/{wp.Max}");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AAP] OffensivePsychicApplyCosts_Patch.Postfix failed: {e.Message}");
+            }
         }
 
         private static bool IsOffensivePsychic(string name) =>
@@ -111,132 +132,152 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     // DEFENSIVE PATCHES (MC / Panic target filter)
     // ================================================================
 
-    // Original patch for ApplyEffectAbility.TargetFilterPredicate (may still apply to Induce Panic)
     [HarmonyPatch(typeof(ApplyEffectAbility), "TargetFilterPredicate")]
     public static class DefensiveTargetFilter_Patch
     {
+        private static Dictionary<TacticalActor, (float cur, float max)> _targetWpBackup
+            = new Dictionary<TacticalActor, (float cur, float max)>();
+
         static bool Prefix(ApplyEffectAbility __instance, TacticalActorBase targetActor, ref bool __result)
         {
-            string defName = __instance.TacticalAbilityDef.name;
-            if (!defName.Contains("InducePanic") && !defName.Contains("MindControl")) return true;
-
-            TacticalActor target = targetActor as TacticalActor;
-            TacticalActor caster = __instance.TacticalActor;
-            if (target == null || caster == null) return true;
-            if (target.TacticalFaction != target.TacticalLevel.View.ViewerFaction ||
-                caster.TacticalFaction.GetRelationTo(target.TacticalFaction) != FactionRelation.Enemy)
-                return true;
-
-            if (PsychicBuffManager.PsychicInfluencesCompleted)
+            try
             {
-                if (caster.CharacterStats.WillPoints.Max <= 56f)
+                string defName = __instance.TacticalAbilityDef.name;
+                if (!defName.Contains("InducePanic") && !defName.Contains("MindControl")) return true;
+
+                TacticalActor target = targetActor as TacticalActor;
+                TacticalActor caster = __instance.TacticalActor;
+                if (target == null || caster == null) return true;
+                if (target.TacticalFaction != target.TacticalLevel.View.ViewerFaction ||
+                    caster.TacticalFaction.GetRelationTo(target.TacticalFaction) != FactionRelation.Enemy)
+                    return true;
+
+                if (PsychicBuffManager.PsychicInfluencesCompleted)
                 {
-                    __result = false;
-                    Debug.Log($"[AAP] Defensive block (shell): {defName} from {caster.DisplayName} (WPmax≤56) against {target.DisplayName}");
-                    return false;
+                    if (caster.CharacterStats.WillPoints.Max <= 56f)
+                    {
+                        __result = false;
+                        Debug.Log($"[AAP] Defensive block (shell): {defName} from {caster.DisplayName} (WPmax≤56) against {target.DisplayName}");
+                        return false;
+                    }
+                    if (caster.CharacterStats.WillPoints.Value > 20f)
+                    {
+                        var wp = target.CharacterStats.WillPoints;
+                        _targetWpBackup[target] = (wp.Value, wp.Max);
+                        wp.Set(56f, false);
+                        wp.Set(56f, false);
+                        Debug.Log($"[AAP] Defensive WP inflated to 56 for {target.DisplayName} (shell active)");
+                    }
                 }
-                if (caster.CharacterStats.WillPoints.Value > 20f)
+                else if (PsychicBuffManager.MindfraggerResearchCompleted &&
+                         target.GameTags.Contains(PsychicBuffManager.MindfraggerBonusTag))
                 {
                     var wp = target.CharacterStats.WillPoints;
+                    float boost = wp.Max * 0.5f;
                     _targetWpBackup[target] = (wp.Value, wp.Max);
-                    wp.Set(56f, false);
-                    wp.Set(56f, false);
-                    Debug.Log($"[AAP] Defensive WP inflated to 56 for {target.DisplayName} (shell active)");
+                    wp.Set(wp.Value + boost, false);
+                    wp.Set(wp.Max + boost, false);
+                    Debug.Log($"[AAP] Defensive WP boost (+50%) for {target.DisplayName}: {wp.Value}/{wp.Max}");
                 }
+                return true;
             }
-            else if (PsychicBuffManager.MindfraggerResearchCompleted &&
-                     target.GameTags.Contains(PsychicBuffManager.MindfraggerBonusTag))
+            catch (Exception e)
             {
-                var wp = target.CharacterStats.WillPoints;
-                float boost = wp.Max * 0.5f;
-                _targetWpBackup[target] = (wp.Value, wp.Max);
-                wp.Set(wp.Value + boost, false);
-                wp.Set(wp.Max + boost, false);
-                Debug.Log($"[AAP] Defensive WP boost (+50%) for {target.DisplayName}: {wp.Value}/{wp.Max}");
+                Debug.LogError($"[AAP] DefensiveTargetFilter_Patch.Prefix failed: {e.Message}");
+                return true;
             }
-
-            return true;
         }
 
         static void Postfix(ApplyEffectAbility __instance, TacticalActorBase targetActor)
         {
-            var target = targetActor as TacticalActor;
-            if (target == null) return;
-            if (_targetWpBackup.TryGetValue(target, out var saved))
+            try
             {
-                target.CharacterStats.WillPoints.Set(saved.max, false);
-                target.CharacterStats.WillPoints.Set(saved.cur, false);
-                _targetWpBackup.Remove(target);
+                var target = targetActor as TacticalActor;
+                if (target == null) return;
+                if (_targetWpBackup.TryGetValue(target, out var saved))
+                {
+                    target.CharacterStats.WillPoints.Set(saved.max, false);
+                    target.CharacterStats.WillPoints.Set(saved.cur, false);
+                    _targetWpBackup.Remove(target);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AAP] DefensiveTargetFilter_Patch.Postfix failed: {e.Message}");
             }
         }
-
-        private static Dictionary<TacticalActor, (float cur, float max)> _targetWpBackup
-            = new Dictionary<TacticalActor, (float cur, float max)>();
     }
 
-    // ===== FIXED: MindControlAbility.Activate prefix (null‑safe) =====
     [HarmonyPatch(typeof(MindControlAbility), "Activate")]
     public static class DefensiveTargetFilter_MindControl_Patch
     {
         static bool Prefix(MindControlAbility __instance)
         {
-            if (!PsychicBuffManager.PsychicInfluencesCompleted)
-                return true;
-
-            TacticalActor caster = __instance.TacticalActor;
-            if (caster == null) return true;
-
-            // null safety for the whole view chain
-            TacticalLevelController level = caster.TacticalLevel;
-            if (level == null) return true;
-            TacticalView view = level.View;
-            if (view == null) return true;
-            TacticalFaction viewerFaction = view.ViewerFaction;
-            if (viewerFaction == null) return true;
-
-            if (caster.TacticalFaction.GetRelationTo(viewerFaction) != FactionRelation.Enemy)
-                return true;
-
-            float casterMaxWP = caster.CharacterStats.WillPoints.Max;
-            if (casterMaxWP <= 56f)
+            try
             {
-                Debug.Log($"[AAP] Defensive block (shell) – {caster.DisplayName} (WPmax={casterMaxWP}) cannot use Mind Control.");
-                return false; // skip the original Activate
-            }
+                if (!PsychicBuffManager.PsychicInfluencesCompleted) return true;
 
-            return true;
+                TacticalActor caster = __instance.TacticalActor;
+                if (caster == null) return true;
+
+                TacticalLevelController level = caster.TacticalLevel;
+                if (level == null) return true;
+                TacticalView view = level.View;
+                if (view == null) return true;
+                TacticalFaction viewerFaction = view.ViewerFaction;
+                if (viewerFaction == null) return true;
+
+                if (caster.TacticalFaction.GetRelationTo(viewerFaction) != FactionRelation.Enemy)
+                    return true;
+
+                float casterMaxWP = caster.CharacterStats.WillPoints.Max;
+                if (casterMaxWP <= 56f)
+                {
+                    Debug.Log($"[AAP] Defensive block (shell) – {caster.DisplayName} (WPmax={casterMaxWP}) cannot use Mind Control.");
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AAP] MindControl_Patch.Prefix failed: {e.Message}");
+                return true;
+            }
         }
     }
 
-    // ===== NEW: AI no longer tries the blocked ability (patched on base class) =====
     [HarmonyPatch(typeof(TacticalAbility), "GetDisabledStateInternal")]
     public static class MindControl_DisableForAI_Patch
     {
         static void Postfix(TacticalAbility __instance, ref AbilityDisabledState __result,
             IgnoredAbilityDisabledStatesFilter filter)
         {
-            if (!PsychicBuffManager.PsychicInfluencesCompleted) return;
-            if (!(__instance is MindControlAbility)) return;
-
-            TacticalActor caster = __instance.TacticalActor;
-            if (caster == null) return;
-            TacticalLevelController level = caster.TacticalLevel;
-            if (level == null || level.View == null) return;
-            TacticalFaction viewer = level.View.ViewerFaction;
-            if (viewer == null) return;
-            if (caster.TacticalFaction.GetRelationTo(viewer) != FactionRelation.Enemy) return;
-
-            float casterMaxWP = caster.CharacterStats.WillPoints.Max;
-            if (casterMaxWP <= 56f)
+            try
             {
-                __result = AbilityDisabledState.NotEnoughWillPoints;
+                if (!PsychicBuffManager.PsychicInfluencesCompleted) return;
+                if (!(__instance is MindControlAbility)) return;
+
+                TacticalActor caster = __instance.TacticalActor;
+                if (caster == null) return;
+                TacticalLevelController level = caster.TacticalLevel;
+                if (level == null || level.View == null) return;
+                TacticalFaction viewer = level.View.ViewerFaction;
+                if (viewer == null) return;
+                if (caster.TacticalFaction.GetRelationTo(viewer) != FactionRelation.Enemy) return;
+
+                float casterMaxWP = caster.CharacterStats.WillPoints.Max;
+                if (casterMaxWP <= 56f)
+                {
+                    __result = AbilityDisabledState.NotEnoughWillPoints;
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AAP] MindControl_DisableForAI_Patch failed: {e.Message}");
             }
         }
     }
 
-    // ================================================================
-    // SONIC BLAST DEFENSE
-    // ================================================================
     [HarmonyPatch(typeof(ApplyEffectAbility), "TargetFilterPredicate")]
     public static class SonicBlastDefense_Patch
     {
@@ -244,147 +285,163 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
         static bool Prefix(ApplyEffectAbility __instance, TacticalActorBase targetActor, ref bool __result)
         {
-            string defName = __instance.TacticalAbilityDef.name;
-            if (!defName.Contains("SonicBlast") && !defName.Contains("Sonic_Blast")) return true;
+            try
+            {
+                string defName = __instance.TacticalAbilityDef.name;
+                if (!defName.Contains("SonicBlast") && !defName.Contains("Sonic_Blast")) return true;
 
-            TacticalActor target = targetActor as TacticalActor;
-            TacticalActor caster = __instance.TacticalActor;
-            if (target == null || caster == null) return true;
-            if (target.TacticalFaction != target.TacticalLevel.View.ViewerFaction ||
-                caster.TacticalFaction.GetRelationTo(target.TacticalFaction) != FactionRelation.Enemy)
+                TacticalActor target = targetActor as TacticalActor;
+                TacticalActor caster = __instance.TacticalActor;
+                if (target == null || caster == null) return true;
+                if (target.TacticalFaction != target.TacticalLevel.View.ViewerFaction ||
+                    caster.TacticalFaction.GetRelationTo(target.TacticalFaction) != FactionRelation.Enemy)
+                    return true;
+                if (!PsychicBuffManager.PsychicInfluencesCompleted) return true;
+
+                float enemyMaxWP = caster.CharacterStats.WillPoints.Max;
+                if (enemyMaxWP <= 56f)
+                {
+                    __result = false;
+                    Debug.Log($"[AAP] Sonic Blast negated (shell): {defName} from {caster.DisplayName} (WPmax≤56) against {target.DisplayName}");
+                    return false;
+                }
+
+                float probability = 0.75f * (enemyMaxWP - 56f) / (66f - 56f);
+                probability = Mathf.Clamp01(probability);
+                float roll = (float)Rng.NextDouble();
+                if (roll > probability)
+                {
+                    __result = false;
+                    Debug.Log($"[AAP] Sonic Blast daze roll failed (prob {probability:P1}): {defName} from {caster.DisplayName} to {target.DisplayName}");
+                    return false;
+                }
+                Debug.Log($"[AAP] Sonic Blast daze roll succeeded (prob {probability:P1}): {defName} from {caster.DisplayName} to {target.DisplayName}");
                 return true;
-            if (!PsychicBuffManager.PsychicInfluencesCompleted) return true;
-
-            float enemyMaxWP = caster.CharacterStats.WillPoints.Max;
-            if (enemyMaxWP <= 56f)
-            {
-                __result = false;
-                Debug.Log($"[AAP] Sonic Blast negated (shell): {defName} from {caster.DisplayName} (WPmax≤56) against {target.DisplayName}");
-                return false;
             }
-
-            float probability = 0.75f * (enemyMaxWP - 56f) / (66f - 56f);
-            probability = Mathf.Clamp01(probability);
-            float roll = (float)Rng.NextDouble();
-            if (roll > probability)
+            catch (Exception e)
             {
-                __result = false;
-                Debug.Log($"[AAP] Sonic Blast daze roll failed (prob {probability:P1}): {defName} from {caster.DisplayName} to {target.DisplayName}");
-                return false;
+                Debug.LogError($"[AAP] SonicBlastDefense_Patch.Prefix failed: {e.Message}");
+                return true;
             }
-            Debug.Log($"[AAP] Sonic Blast daze roll succeeded (prob {probability:P1}): {defName} from {caster.DisplayName} to {target.DisplayName}");
-            return true;
         }
     }
 
-    // ================================================================
-    // PSYCHIC DAMAGE DEFENSE (health damage – Mind Crush)
-    // ================================================================
     [HarmonyPatch(typeof(DamageAccumulation), "GenerateStandardDamageTargetData")]
     public static class PsychicDamage_Defense
     {
         static void Prefix(DamageAccumulation __instance, IDamageReceiver target)
         {
-            var actor = target.GetActor() as TacticalActor;
-            if (actor == null || actor.TacticalFaction != actor.TacticalLevel.View.ViewerFaction) return;
-
-            string effectName = __instance.DamageEffectDef?.name ?? "";
-            if (!effectName.Contains("MindCrush") && !effectName.Contains("PsychicScream")) return;
-
-            var caster = TacUtil.GetSourceTacticalActorBase(__instance.Source) as TacticalActor;
-            if (caster == null) return;
-            if (caster.TacticalFaction.GetRelationTo(actor.TacticalFaction) != FactionRelation.Enemy) return;
-
-            float casterMaxWP = caster.CharacterStats.WillPoints.Max;
-            if (PsychicBuffManager.PsychicInfluencesCompleted)
+            try
             {
-                if (casterMaxWP <= 56f)
+                var actor = target.GetActor() as TacticalActor;
+                if (actor == null || actor.TacticalFaction != actor.TacticalLevel.View.ViewerFaction) return;
+
+                string effectName = __instance.DamageEffectDef?.name ?? "";
+                if (!effectName.Contains("MindCrush") && !effectName.Contains("PsychicScream")) return;
+
+                var caster = TacUtil.GetSourceTacticalActorBase(__instance.Source) as TacticalActor;
+                if (caster == null) return;
+                if (caster.TacticalFaction.GetRelationTo(actor.TacticalFaction) != FactionRelation.Enemy) return;
+
+                float casterMaxWP = caster.CharacterStats.WillPoints.Max;
+                if (PsychicBuffManager.PsychicInfluencesCompleted)
                 {
-                    __instance.Amount = 0f;
-                    Debug.Log($"[AAP] Psychic damage blocked (shell): {effectName} from {caster.DisplayName} (WPmax≤56) to {actor.DisplayName}");
-                    return;
+                    if (casterMaxWP <= 56f)
+                    {
+                        __instance.Amount = 0f;
+                        Debug.Log($"[AAP] Psychic damage blocked (shell): {effectName} from {caster.DisplayName} (WPmax≤56) to {actor.DisplayName}");
+                        return;
+                    }
+                    if (caster.CharacterStats.WillPoints.Value <= 20f)
+                    {
+                        __instance.Amount *= 0.5f;
+                        Debug.Log($"[AAP] Psychic damage halved (exhaustion): {effectName} from {caster.DisplayName} to {actor.DisplayName}");
+                        return;
+                    }
                 }
-                if (caster.CharacterStats.WillPoints.Value <= 20f)
+                else if (PsychicBuffManager.MindfraggerResearchCompleted &&
+                         effectName.Contains("PsychicScream") &&
+                         actor.GameTags.Contains(PsychicBuffManager.MindfraggerBonusTag))
                 {
                     __instance.Amount *= 0.5f;
-                    Debug.Log($"[AAP] Psychic damage halved (exhaustion): {effectName} from {caster.DisplayName} to {actor.DisplayName}");
-                    return;
+                    Debug.Log($"[AAP] Psychic damage halved (Stage1 Scream): {effectName} to {actor.DisplayName}");
                 }
             }
-            else if (PsychicBuffManager.MindfraggerResearchCompleted &&
-                     effectName.Contains("PsychicScream") &&
-                     actor.GameTags.Contains(PsychicBuffManager.MindfraggerBonusTag))
+            catch (Exception e)
             {
-                __instance.Amount *= 0.5f;
-                Debug.Log($"[AAP] Psychic damage halved (Stage1 Scream): {effectName} to {actor.DisplayName}");
+                Debug.LogError($"[AAP] PsychicDamage_Defense failed: {e.Message}");
             }
         }
     }
 
-    // ================================================================
-    // WILLPOINT‑LOSS DEFENSE (Scream / Mind Crush WP drain) – v3 FIXED
-    // ================================================================
     [HarmonyPatch(typeof(StatusStat), "ApplyStatModification")]
     public static class PsychicWillpointLoss_Defense_V3
     {
         static void Prefix(StatusStat __instance, ref StatModification statMod)
         {
-            if (__instance.Name != "WillPoints") return;
-            if (statMod.Value >= 0f) return;
-
-            var actor = __instance.Owner as TacticalActor;
-            if (actor == null || actor.TacticalFaction != actor.TacticalLevel.View.ViewerFaction)
-                return;
-
-            TacticalActor caster = null;
-            object source = statMod.Source;
-
-            if (source is TacStatus status)
-                caster = status.Source as TacticalActor;
-            else if (source is TacticalAbility ability)
-                caster = ability.TacticalActor;
-            else if (source is DamageAccumulation dmg)
-                caster = TacUtil.GetSourceTacticalActorBase(dmg.Source) as TacticalActor;
-
-            if (caster == null && actor.Status != null)
+            try
             {
-                foreach (var s in actor.Status.Statuses.OfType<TacStatus>())
+                if (__instance.Name != "WillPoints") return;
+                if (statMod.Value >= 0f) return;
+
+                var actor = __instance.Owner as TacticalActor;
+                if (actor == null || actor.TacticalFaction != actor.TacticalLevel.View.ViewerFaction)
+                    return;
+
+                TacticalActor caster = null;
+                object source = statMod.Source;
+
+                if (source is TacStatus status)
+                    caster = status.Source as TacticalActor;
+                else if (source is TacticalAbility ability)
+                    caster = ability.TacticalActor;
+                else if (source is DamageAccumulation dmg)
+                    caster = TacUtil.GetSourceTacticalActorBase(dmg.Source) as TacticalActor;
+
+                if (caster == null && actor.Status != null)
                 {
-                    if (s.TacStatusDef.EffectName?.Contains("PsychicScream") == true ||
-                        s.TacStatusDef.EffectName?.Contains("MindCrush") == true)
+                    foreach (var s in actor.Status.Statuses.OfType<TacStatus>())
                     {
-                        caster = s.Source as TacticalActor;
-                        break;
+                        if (s.TacStatusDef.EffectName?.Contains("PsychicScream") == true ||
+                            s.TacStatusDef.EffectName?.Contains("MindCrush") == true)
+                        {
+                            caster = s.Source as TacticalActor;
+                            break;
+                        }
                     }
                 }
-            }
 
-            if (caster == null) return;
-            if (caster.TacticalFaction.GetRelationTo(actor.TacticalFaction) != FactionRelation.Enemy)
-                return;
-
-            float casterMaxWP = caster.CharacterStats.WillPoints.Max;
-            float casterCurWP = caster.CharacterStats.WillPoints.Value;
-
-            if (PsychicBuffManager.PsychicInfluencesCompleted)
-            {
-                if (casterMaxWP <= 56f)
-                {
-                    statMod.Value = 0f;
-                    Debug.Log($"[AAP] Psychic WP loss blocked (shell): from {caster.DisplayName} (WPmax≤56) to {actor.DisplayName}");
+                if (caster == null) return;
+                if (caster.TacticalFaction.GetRelationTo(actor.TacticalFaction) != FactionRelation.Enemy)
                     return;
+
+                float casterMaxWP = caster.CharacterStats.WillPoints.Max;
+                float casterCurWP = caster.CharacterStats.WillPoints.Value;
+
+                if (PsychicBuffManager.PsychicInfluencesCompleted)
+                {
+                    if (casterMaxWP <= 56f)
+                    {
+                        statMod.Value = 0f;
+                        Debug.Log($"[AAP] Psychic WP loss blocked (shell): from {caster.DisplayName} (WPmax≤56) to {actor.DisplayName}");
+                        return;
+                    }
+                    if (casterCurWP <= 20f)
+                    {
+                        statMod.Value *= 0.5f;
+                        Debug.Log($"[AAP] Psychic WP loss halved (exhaustion): from {caster.DisplayName} to {actor.DisplayName}");
+                    }
                 }
-                if (casterCurWP <= 20f)
+                else if (PsychicBuffManager.MindfraggerResearchCompleted &&
+                         actor.GameTags.Contains(PsychicBuffManager.MindfraggerBonusTag))
                 {
                     statMod.Value *= 0.5f;
-                    Debug.Log($"[AAP] Psychic WP loss halved (exhaustion): from {caster.DisplayName} to {actor.DisplayName}");
+                    Debug.Log($"[AAP] Psychic WP loss halved (Stage1 Scream): to {actor.DisplayName}");
                 }
             }
-            else if (PsychicBuffManager.MindfraggerResearchCompleted &&
-                     actor.GameTags.Contains(PsychicBuffManager.MindfraggerBonusTag))
+            catch (Exception e)
             {
-                statMod.Value *= 0.5f;
-                Debug.Log($"[AAP] Psychic WP loss halved (Stage1 Scream): to {actor.DisplayName}");
+                Debug.LogError($"[AAP] PsychicWillpointLoss_Defense_V3 failed: {e.Message}");
             }
         }
     }

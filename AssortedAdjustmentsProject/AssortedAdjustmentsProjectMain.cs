@@ -25,6 +25,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         //public static bool DiagnosticsEnabled = false;   // turn on only when needed
         public override void OnModEnabled()
         {
+            AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+            {
+                Debug.LogError("[AAP] UNHANDLED EXCEPTION: " + (args.ExceptionObject as Exception)?.ToString() ?? args.ExceptionObject.ToString());
+            };
             Debug.Log("=========================================");
             Debug.Log("[AAP] FULL MOD: OnModEnabled called.");
             Debug.Log("=========================================");
