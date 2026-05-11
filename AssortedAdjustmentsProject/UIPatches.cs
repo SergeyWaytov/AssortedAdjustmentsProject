@@ -82,7 +82,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         private static string AppendTime(float h)
         {
             var tu = TimeUnit.FromHours(h);
-            var tf = new TimeRemainingFormatterDef { DaysText = new LocalizedTextBind("{0}d", true), HoursText = new LocalizedTextBind("{0}h", true) };
+            var tf = ScriptableObject.CreateInstance<TimeRemainingFormatterDef>();
+            // Set up the localised text keys (the same as before)
+            tf.DaysText = new LocalizedTextBind("{0}d", true);
+            tf.HoursText = new LocalizedTextBind("{0}h", true);
             return "   ~ " + UIUtil.FormatTimeRemaining(tu, tf);
         }
 

@@ -12,6 +12,8 @@ using PhoenixPoint.Tactical.Entities.Statuses;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using PhoenixPoint.Tactical.Entities;          // TacticalActor
+
 
 namespace SergeyWaytov.AssortedAdjustmentsProject
 {
@@ -96,6 +98,25 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             psBoost.ShowNotification = true;
 
             precisionShot.StatusDef = psBoost;
+            // -------- CREATE ADD‑ABILITY STATUS ----------
+            // This status will permanently grant Precision Shot when applied to an actor.
+            var addAbilityStatus = Helpers.CreateDefFromClone(
+                cache.GetDef<AddAbilityStatusDef>("E_AddAbilityStatus [DeployBeacon_StatusDef]"),
+                "f7a1b2c3-d4e5-4f6a-9bc0-123456789abc",
+                "E_AddAbilityStatus [AAP_PrecisionShot_Status]"
+            ) as AddAbilityStatusDef;
+
+            addAbilityStatus.AbilityDef = precisionShot;
+            addAbilityStatus.DurationTurns = -1;          // forever
+            addAbilityStatus.ExpireOnEndOfTurn = false;
+            addAbilityStatus.SingleInstance = true;
+            addAbilityStatus.ShowNotification = false;
+            addAbilityStatus.VisibleOnPassiveBar = true;  // shows icon on the soldier's abilities list
+            addAbilityStatus.Visuals = Helpers.CreateDefFromClone(
+                precisionShot.ViewElementDef,
+                "9f8e7d6c-5b4a-3c2d-1e0f-abcdef012345",
+                "E_Visuals [AAP_PrecisionShot_AddStatus]"
+            ) as ViewElementDef;
 
             // ---- ANIMATION: copy QuickAim's AnimActionDef ----
             var repo = GameUtl.GameComponent<DefRepository>();
@@ -118,20 +139,31 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 Debug.LogWarning("[AAP] QuickAim has no AnimActionDef – Precision Shot will have no animation.");
             }
 
-            // === MODIFY SNIPER CLASS ===
-            var sniperClass = cache.GetDef<ClassProficiencyAbilityDef>("Sniper_ClassProficiency_AbilityDef");
-            if (sniperClass != null)
+            
+        }
+        [HarmonyPatch(typeof(TacticalActor), "ProcessInstanceData")]
+        internal static class PrecisionShot_ApplyToPhoenixSnipers
+        {
+            static void Postfix(TacticalActor __instance)
             {
-                var abilities = sniperClass.AbilityDefs?.ToList() ?? new List<AbilityDef>();
+                // Only the player's own actors
+                if (__instance.TacticalFaction != __instance.TacticalLevel?.View?.ViewerFaction)
+                    return;
 
-                // PistolProficiency mod may have removed Quick Aim – add it back if missing
-                if (quickAim != null && !abilities.Contains(quickAim))
-                    abilities.Insert(0, quickAim);
+                // Only Snipers
+                var sniperTag = ModMain.DefCache.GetDef<GameTagDef>("Sniper_ClassTagDef");
+                if (sniperTag == null || !__instance.HasGameTag(sniperTag))
+                    return;
 
-                if (!abilities.Contains(precisionShot))
-                    abilities.Add(precisionShot);
+                // Get our custom status
+                var addStatusDef = ModMain.DefCache.GetDef<AddAbilityStatusDef>(
+                    "E_AddAbilityStatus [AAP_PrecisionShot_Status]");
+                if (addStatusDef == null)
+                    return;
 
-                sniperClass.AbilityDefs = abilities.ToArray();
+                // Apply if not already present
+                if (!__instance.Status.HasStatus(addStatusDef))
+                    __instance.Status.ApplyStatus(addStatusDef);
             }
         }
     }
