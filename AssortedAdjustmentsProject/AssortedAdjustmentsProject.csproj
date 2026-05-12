@@ -49,6 +49,7 @@
 		<Compile Include="ReturnFirePatch.cs" />
 		<Compile Include="ScrapAircraftFix.cs" />
 		<Compile Include="SquadEvacPatch.cs" />
+		<Compile Include="StatEnforcer.cs" />
 		<Compile Include="TutorialJacobFixPatch.cs" />
 		<Compile Include="UIPatches.cs" />
 		<Compile Include="UI_ExtendedAgendaTracker.cs" />
