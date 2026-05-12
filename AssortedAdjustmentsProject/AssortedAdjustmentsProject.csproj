@@ -39,7 +39,6 @@
 		<Compile Include="GeoscapeFacilitiesPatches.cs" />
 		<Compile Include="Helpers.cs" />
 		<Compile Include="LootMechanics.cs" />
-		<Compile Include="PoisonReworkEnforcer.cs" />
 		<Compile Include="PrecisionShot.cs" />
 		<Compile Include="Properties\AssemblyInfo.cs" />
 		<Compile Include="PsychicBuffManager.cs" />
