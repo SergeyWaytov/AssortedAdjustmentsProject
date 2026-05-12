@@ -94,14 +94,13 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
 
             // ===== Stimpack Buff =====
-            var stimpackAbility = cache.GetDef<BaseDef>("Stimpack_AbilityDef"); // This is the HealAbilityDef
-            if (stimpackAbility != null)
+            var stimpackDef = cache.GetDef<HealAbilityDef>("Stimpack_AbilityDef");
+            if (stimpackDef != null)
             {
-                var tHeal = Traverse.Create(stimpackAbility);
-                tHeal.Property("ActionPointCost")?.SetValue(0.25f);
-                tHeal.Property("HealBodyParts")?.SetValue(true);
-                tHeal.Property("BodyPartHealAmount")?.SetValue(10.0f);
-                Debug.Log("[AAP] Stimpack buffed: 0.25 AP, heals all body parts.");
+                Traverse.Create(stimpackDef).Property("ActionPointCost")?.SetValue(0.25f);
+                Traverse.Create(stimpackDef).Property("HealBodyParts")?.SetValue(true);
+                Traverse.Create(stimpackDef).Property("BodyPartHealAmount")?.SetValue(10.0f);
+                Debug.Log("[AAP] Stimpack buffed: 0.25 AP, heals all body parts for 10 HP each.");
             }
 
             // ===== Screaming Head Mind Control Immunity =====
