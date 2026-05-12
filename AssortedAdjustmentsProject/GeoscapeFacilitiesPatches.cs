@@ -1,6 +1,7 @@
 ﻿using Base.Core;
 using Base.Defs;
 using HarmonyLib;
+using PhoenixPoint.Geoscape.Entities.Sites;
 using System.Collections;
 using System.Linq;
 using UnityEngine;
@@ -97,6 +98,18 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 }
                 t.Property("MaxInstancesPerBase")?.SetValue(1);
                 Debug.Log("[AAP] Access Lift protection attempt complete.");
+            }
+            // ===== Global Mist Repeller & Scanner max ranges (on GeoPhoenixBaseDef) =====
+            {
+                var repo = GameUtl.GameComponent<DefRepository>();
+                var geoBase = repo.GetAllDefs<GeoPhoenixBaseDef>()
+                    .FirstOrDefault(d => d.name.Contains("GeoPhoenixBaseDef"));
+                if (geoBase != null)
+                {
+                    geoBase.MaxMistRepellerRange.Value = 2250f;
+                    geoBase.MaxSiteScannerRange.Value = 800f;
+                    Debug.Log("[AAP] GeoPhoenixBaseDef global ranges updated (Mist 2250, Scanner 800).");
+                }
             }
         }
     }
