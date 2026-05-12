@@ -143,7 +143,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 catch (Exception e) { Debug.LogError($"[AAP] OnExcavationComplete failed: {e.Message}"); }
             }
         }
-
+        /*
         // ========== Defence scheduled tracker – robust version ==========
         [HarmonyPatch]
         public static class OnDefenseScheduledPatch
@@ -182,7 +182,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 }
             }
         }
-        /*
+        
         // Repair trackers on init
         [HarmonyPatch]
         public static class AddRepairTrackersPatch
