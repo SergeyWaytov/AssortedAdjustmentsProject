@@ -36,7 +36,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
 
             // Mist Repeller
-            var mistRepeller = cache.GetDef<BaseDef>("MistRepeller_PhoenixFacilityDef");
+            /*var mistRepeller = cache.GetDef<BaseDef>("MistRepeller_PhoenixFacilityDef");
             if (mistRepeller != null)
             {
                 var components = Traverse.Create(mistRepeller).Field("GeoFacilityComponentDefs").GetValue<IList>();
@@ -54,10 +54,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                         }
                     }
                 }
-            }
+            }*/
 
             // Satellite Uplink
-            var satelliteUplink = cache.GetDef<BaseDef>("SatelliteUplink_PhoenixFacilityDef");
+            /*var satelliteUplink = cache.GetDef<BaseDef>("SatelliteUplink_PhoenixFacilityDef");
             if (satelliteUplink != null)
             {
                 var components = Traverse.Create(satelliteUplink).Field("GeoFacilityComponentDefs").GetValue<IList>();
@@ -79,7 +79,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                         }
                     }
                 }
-            }
+            }*/
 
             // Access Lift Protection
             var accessLift = cache.GetDef<BaseDef>("AccessLift_PhoenixFacilityDef");
@@ -100,7 +100,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 Debug.Log("[AAP] Access Lift protection attempt complete.");
             }
             // ===== Global Mist Repeller & Scanner max ranges (on GeoPhoenixBaseDef) =====
-            {
+            /*{
                 var repo = GameUtl.GameComponent<DefRepository>();
                 var geoBase = repo.GetAllDefs<GeoPhoenixBaseDef>()
                     .FirstOrDefault(d => d.name.Contains("GeoPhoenixBaseDef"));
@@ -110,7 +110,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                     geoBase.MaxSiteScannerRange.Value = 800f;
                     Debug.Log("[AAP] GeoPhoenixBaseDef global ranges updated (Mist 2250, Scanner 800).");
                 }
-            }
+            }*/
         }
     }
 }
