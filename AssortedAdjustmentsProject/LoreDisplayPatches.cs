@@ -52,6 +52,61 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
         }
 
+        // ── Legacy cleanup ────────────────────────────────────────────
+        // Earlier builds appended lore directly into the vanilla I2 terms;
+        // those edits could persist (and arrived truncated) in game runs made
+        // with those builds. Strip any such leftovers so the vanilla text is
+        // clean before the render-layer append does its job.
+        private static readonly string[] LegacyLoreMarkers =
+        {
+            "\n\n<color=#A0A0FF>— Whispers from the Silver-Eyed Man",
+            "\n\n<color=#A0A0FF>— Шёпот сереброглазого человека",
+            "\n\n<color=#A0A0FF>— Psychic Influences breakthrough",
+            "\n\n<color=#A0A0FF>— Прорыв: Психические влияния"
+        };
+
+        internal static void CleanupLegacyTermLore()
+        {
+            try
+            {
+                var cache = ModMain.DefCache;
+                if (cache == null) return;
+                string[] researchDefs = { "PX_Alien_Mindfragger_ResearchDef", "PX_PyschicAttack_ResearchDef" };
+
+                foreach (string defName in researchDefs)
+                {
+                    var research = cache.GetDef<ResearchDef>(defName);
+                    string key = research?.ViewElementDef?.CompleteText?.LocalizationKey;
+                    if (string.IsNullOrEmpty(key)) continue;
+
+                    foreach (var source in I2.Loc.LocalizationManager.Sources)
+                    {
+                        var term = source.GetTermData(key);
+                        if (term == null) continue;
+                        for (int i = 0; i < term.Languages.Length; i++)
+                        {
+                            string text = term.Languages[i];
+                            if (string.IsNullOrEmpty(text)) continue;
+                            foreach (string marker in LegacyLoreMarkers)
+                            {
+                                int pos = text.IndexOf(marker);
+                                if (pos >= 0)
+                                {
+                                    term.Languages[i] = text.Substring(0, pos);
+                                    Debug.Log($"[AAP] Research lore: stripped legacy injected text from '{key}' (language index {i}).");
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AAP] Research lore legacy cleanup failed: {e.Message}");
+            }
+        }
+
         // ── Research screen tooltip (hover on a research, incl. Completed) ──
         [HarmonyPatch(typeof(ResearchTooltip), "Init")]
         public static class ResearchTooltip_Init_Patch
