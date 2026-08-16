@@ -42,6 +42,7 @@
 		<Compile Include="GeoscapeFacilitiesPatches.cs" />
 		<Compile Include="Helpers.cs" />
 		<Compile Include="LimitedWarAdjustments.cs" />
+		<Compile Include="LoreDisplayPatches.cs" />
 		<Compile Include="LootMechanics.cs" />
 		<Compile Include="PrecisionShot.cs" />
 		<Compile Include="Properties\AssemblyInfo.cs" />

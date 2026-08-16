@@ -58,7 +58,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 // re-inject if needed) after the geoscape level is up - the Contains
                 // guards make this idempotent, and the diagnostic line shows whether
                 // the terms survived the load.
-                ModMain.InjectLoreIntoResearchDescriptions();
+                // (lore display handled at render layer by LoreDisplayPatches)
 
                 var phoenix = __instance?.PhoenixFaction;
                 if (phoenix?.Research == null) return;

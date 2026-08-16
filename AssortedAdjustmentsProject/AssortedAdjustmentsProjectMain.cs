@@ -46,7 +46,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             var _ = Config;   // cache settings before modules read them
             ImportLocalization();   // AAP_ keys must exist before anything localizes
             DefCache = new DefCache();
-            InjectLoreIntoResearchDescriptions();   // lore into vanilla research terms (popup + archive)
+            // Lore display is handled at render layer (LoreDisplayPatches) - no term mutation.
 
 
 
@@ -161,101 +161,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             {
                 Debug.LogError($"[AAP] Localization import failed: {e}");
             }
-        }
-
-        /// <summary>
-        /// Appends the psychic bonus lore to the VANILLA research text terms
-        /// (English + Russian). All three display surfaces render the SAME
-        /// field for a finished research - CompleteText (Researches screen via
-        /// GetTextByState(Completed), the research-complete modal, and the
-        /// Phoenixpedia entry built in GeoPhoenixpedia) - so appending there
-        /// makes the lore visible everywhere at once. The popup text-scan
-        /// patch stays as a fallback and skips itself once the lore is present.
-        /// </summary>
-        internal static void InjectLoreIntoResearchDescriptions()
-        {
-            try
-            {
-                int injected = 0;
-                injected += InjectResearchLore("PX_Alien_Mindfragger_ResearchDef", "MINDFRAGGER_LORE");
-                injected += InjectResearchLore("PX_PyschicAttack_ResearchDef", "PSYCHIC_INFLUENCES_LORE");
-                Debug.Log($"[AAP] Research lore: injected into {injected} research descriptions.");
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"[AAP] Research lore injection failed: {e}");
-            }
-        }
-
-        private static int InjectResearchLore(string researchDefName, string loreKey)
-        {
-            var research = DefCache?.GetDef<ResearchDef>(researchDefName);
-            if (research?.ViewElementDef == null)
-            {
-                Debug.LogWarning($"[AAP] Research lore: research def not found: {researchDefName}.");
-                return 0;
-            }
-
-            // What completed researches display on every screen. Fallbacks kept
-            // in case a future game version shuffles the fields.
-            var textBind = research.ViewElementDef.CompleteText
-                           ?? research.ViewElementDef.UnlockText
-                           ?? research.ViewElementDef.Description;
-            string descKey = textBind?.LocalizationKey;
-            if (string.IsNullOrEmpty(descKey))
-            {
-                Debug.LogWarning($"[AAP] Research lore: no CompleteText key for {researchDefName}.");
-                return 0;
-            }
-
-            string lore = Localize(loreKey);
-            if (string.IsNullOrEmpty(lore) || lore.Contains("MISSING KEY"))
-            {
-                Debug.LogWarning($"[AAP] Research lore: key {loreKey} did not resolve - skipping.");
-                return 0;
-            }
-
-            int changed = 0;
-            foreach (var source in I2.Loc.LocalizationManager.Sources)
-            {
-                var term = source.GetTermData(descKey);
-                if (term == null) continue;
-
-                bool alreadyPresent = false;
-                foreach (string language in new[] { "English", "Russian" })
-                {
-                    int idx = source.GetLanguageIndex(language);
-                    if (idx < 0) continue;
-                    string current = term.GetTranslation(idx);
-                    bool hasLore = current != null &&
-                        (current.Contains("— Whispers from the Silver") || current.Contains("— Шёпот сереброглазого") ||
-                         current.Contains("Psychic Influences breakthrough") || current.Contains("Прорыв: Психические влияния"));
-                    if (hasLore)
-                    {
-                        alreadyPresent = true;
-                        continue;
-                    }
-                    if (string.IsNullOrEmpty(current)) continue;
-                    term.SetTranslation(idx, current + lore, null);
-                    changed++;
-                }
-
-                // Diagnostic: show what the term actually contains right now, so a
-                // source rebuild that reverts the injection is visible in the log.
-                int enIdx = source.GetLanguageIndex("English");
-                int ruIdx = source.GetLanguageIndex("Russian");
-                string enNow = enIdx >= 0 ? (term.GetTranslation(enIdx) ?? "") : "";
-                string ruNow = ruIdx >= 0 ? (term.GetTranslation(ruIdx) ?? "") : "";
-                Debug.Log($"[AAP] Research lore check '{descKey}': EN ends '...{enNow.Substring(Math.Max(0, enNow.Length - 40)).Replace("\n", " ")}', " +
-                          $"RU ends '...{ruNow.Substring(Math.Max(0, ruNow.Length - 40)).Replace("\n", " ")}' (alreadyPresent={alreadyPresent}).");
-
-                if (changed > 0) break;
-            }
-
-            Debug.Log(changed > 0
-                ? $"[AAP] Research lore: appended to '{descKey}' ({researchDefName}, CompleteText) in {changed} languages."
-                : $"[AAP] Research lore: could not patch '{descKey}' ({researchDefName}).");
-            return changed > 0 ? 1 : 0;
         }
 
         private void FixSoldierTemplates()
