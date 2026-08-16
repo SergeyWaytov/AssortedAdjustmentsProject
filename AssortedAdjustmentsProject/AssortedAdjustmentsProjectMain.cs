@@ -164,12 +164,13 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         }
 
         /// <summary>
-        /// Appends the psychic bonus lore to the VANILLA research description
-        /// localization terms (English + Russian). This makes the lore visible
-        /// everywhere the description is rendered - the research completion
-        /// popup AND the permanent "Unlocked Techs"/Phoenixpedia archive -
-        /// instead of only the one-shot popup. The popup text-scan patch stays
-        /// as a fallback and skips itself when the lore is already present.
+        /// Appends the psychic bonus lore to the VANILLA research text terms
+        /// (English + Russian). All three display surfaces render the SAME
+        /// field for a finished research - CompleteText (Researches screen via
+        /// GetTextByState(Completed), the research-complete modal, and the
+        /// Phoenixpedia entry built in GeoPhoenixpedia) - so appending there
+        /// makes the lore visible everywhere at once. The popup text-scan
+        /// patch stays as a fallback and skips itself once the lore is present.
         /// </summary>
         private void InjectLoreIntoResearchDescriptions()
         {
@@ -189,10 +190,21 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         private int InjectResearchLore(string researchDefName, string loreKey)
         {
             var research = DefCache?.GetDef<ResearchDef>(researchDefName);
-            string descKey = research?.ViewElementDef?.Description?.LocalizationKey;
+            if (research?.ViewElementDef == null)
+            {
+                Debug.LogWarning($"[AAP] Research lore: research def not found: {researchDefName}.");
+                return 0;
+            }
+
+            // What completed researches display on every screen. Fallbacks kept
+            // in case a future game version shuffles the fields.
+            var textBind = research.ViewElementDef.CompleteText
+                           ?? research.ViewElementDef.UnlockText
+                           ?? research.ViewElementDef.Description;
+            string descKey = textBind?.LocalizationKey;
             if (string.IsNullOrEmpty(descKey))
             {
-                Debug.LogWarning($"[AAP] Research lore: no description key for {researchDefName}.");
+                Debug.LogWarning($"[AAP] Research lore: no CompleteText key for {researchDefName}.");
                 return 0;
             }
 
@@ -223,7 +235,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
 
             Debug.Log(changed > 0
-                ? $"[AAP] Research lore: appended to '{descKey}' ({researchDefName}) in {changed} languages."
+                ? $"[AAP] Research lore: appended to '{descKey}' ({researchDefName}, CompleteText) in {changed} languages."
                 : $"[AAP] Research lore: could not patch '{descKey}' ({researchDefName}).");
             return changed > 0 ? 1 : 0;
         }
