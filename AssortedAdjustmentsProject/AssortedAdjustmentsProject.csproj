@@ -29,13 +29,16 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<Compile Include="AAPConfig.cs" />
 		<Compile Include="AbilityPatches.cs" />
 		<Compile Include="AmbushDisabler.cs" />
 		<Compile Include="ArmorPatches.cs" />
 		<Compile Include="AssortedAdjustmentsProjectMain.cs" />
+		<Compile Include="CorruptedHorizonsAdjustments.cs" />
 		<Compile Include="DefCache.cs" />
 		<Compile Include="DeploymentCapPatch.cs" />
 		<Compile Include="EconomyAmbushPatches.cs" />
+		<Compile Include="FesteringSkiesAdjustments.cs" />
 		<Compile Include="GeoscapeFacilitiesPatches.cs" />
 		<Compile Include="Helpers.cs" />
 		<Compile Include="LootMechanics.cs" />
@@ -48,7 +51,7 @@
 		<Compile Include="ResearchCompletePopupPatch.cs" />
 		<Compile Include="ReturnFirePatch.cs" />
 		<Compile Include="ScrapAircraftFix.cs" />
-		<Compile Include="SquadEvacPatch.cs" />
+		<Compile Include="SmartEvacuationPatch.cs" />
 		<Compile Include="TutorialJacobFixPatch.cs" />
 		<Compile Include="UIPatches.cs" />
 		<Compile Include="UI_ExtendedAgendaTracker.cs" />
@@ -57,7 +60,6 @@
 		<Compile Include="UI_SmartBaseSelection.cs" />
 		<Compile Include="VehiclePatches.cs" />
 		<Compile Include="WeaponPatches.cs" />
-		<Compile Include="WPCostDiscovery.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

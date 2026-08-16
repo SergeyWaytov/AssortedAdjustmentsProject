@@ -11,18 +11,19 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     [HarmonyPatch(typeof(UIStateRosterDeployment), "SetUpInitialDeployment")]
     public static class DeploymentCap_IncreaseMaxUnits
     {
-        private const int MinimumDeploymentSlots = 16;
+        private static int MinimumDeploymentSlots => Mathf.Clamp(ModMain.Cfg?.DeploymentCap ?? 16, 8, 32);
 
         [HarmonyPrefix]
         public static void Prefix(GeoMission ____mission)
         {
             if (____mission?.MissionDef == null) return;
 
+            int cap = MinimumDeploymentSlots;
             int currentMax = ____mission.MissionDef.MaxPlayerUnits;
-            if (currentMax < MinimumDeploymentSlots)
+            if (currentMax < cap)
             {
-                ____mission.MissionDef.MaxPlayerUnits = MinimumDeploymentSlots;
-                Debug.Log($"[AAP] Deployment cap raised from {currentMax} to {MinimumDeploymentSlots}.");
+                ____mission.MissionDef.MaxPlayerUnits = cap;
+                Debug.Log($"[AAP] Deployment cap raised from {currentMax} to {cap}.");
             }
         }
     }

@@ -197,6 +197,29 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             SetChargesMaxIfExists(cache, "MechArms_AmmoClip_ItemDef", 8, typeof(ItemDef));
             SetChargesMaxIfExists(cache, "PX_LaserArray_AmmoClip_ItemDef", 30, typeof(ItemDef));
 
+            // ===== DLC presence diagnostics (Kaos Engines & Festering Skies) =====
+            // The FS_ prefix covers both KE operative weapons (Tyr-1 Autocannon,
+            // Vidar GL, Slamstrike, Light Sniper Rifle - names verified against
+            // TFTV) and is simply absent from the DefRepository when the DLC is
+            // not installed. Log what is available so the Player.log always
+            // shows whether the KE patches could apply.
+            string[] dlcProbe =
+            {
+                "FS_Autocannon_WeaponDef",             // KE: Tyr-1 Autocannon
+                "FS_AssaultGrenadeLauncher_WeaponDef", // KE: Vidar GL
+                "FS_SlamstrikeShotgun_WeaponDef",      // KE: Slamstrike Shotgun
+                "FS_LightSniperRifle_WeaponDef"        // KE: Light Sniper Rifle
+            };
+            int present = 0;
+            foreach (string probe in dlcProbe)
+            {
+                bool found = cache.GetDef<WeaponDef>(probe) != null;
+                if (found) present++;
+                Log($"DLC probe: {probe} = {(found ? "found" : "NOT found")}");
+            }
+            Log($"Kaos Engines weapon defs present: {present}/{dlcProbe.Length}" +
+                (present == 0 ? " - DLC not installed, KE weapon patches skipped (no error)." : "."));
+
             Log("WeaponAdjustments finished.");
         }
 

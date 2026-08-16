@@ -20,6 +20,14 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         // Static reference so Harmony patches can reach the cache
         public static DefCache DefCache { get; private set; }
 
+        // Mod settings (native ModConfig; cached statically for the static modules)
+        private static AAPConfig _config;
+        public new AAPConfig Config
+        {
+            get { _config = (AAPConfig)base.Config; return _config; }
+        }
+        public static AAPConfig Cfg => _config;
+
         // Fixed campaign template for Jacob – used by the runtime tutorial fix
         public static TacCharacterDef JacobsFixedTemplate { get; private set; }
         //public static bool DiagnosticsEnabled = false;   // turn on only when needed
@@ -33,8 +41,9 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             Debug.Log("[AAP] FULL MOD: OnModEnabled called.");
             Debug.Log("=========================================");
 
+            var _ = Config;   // cache settings before modules read them
             DefCache = new DefCache();
-            
+
 
 
             //DefNameScanner.Run();
@@ -47,9 +56,13 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             ArmorAdjustments.Apply(DefCache);
             GeoscapeFacilitiesAdjustments.Apply(DefCache);
             VehicleAdjustments.Apply(DefCache);
-            
+
             LootMechanics.Apply(DefCache);
             RepairCosts.Apply(DefCache);
+
+            // DLC adjustments (silently skip when the DLC is not installed)
+            FesteringSkiesAdjustments.Apply(DefCache);
+            CorruptedHorizonsAdjustments.Apply(DefCache);
 
             // Update soldier templates and create the fixed Jacob reference
             FixSoldierTemplates();
@@ -57,11 +70,34 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             harmony = new Harmony("SergeyWaytov_AssortedAdjustmentsProject");
             harmony.PatchAll();   // Applies all patches, including TutorialJacobFixPatch
             I2.Loc.LocalizationManager.LocalizeAll(true);
-            
+
             Debug.Log("[AAP] Precision Shot name: " + ModMain.Localize("PRECISION_SHOT"));
             Debug.Log("[AAP] Precision Shot desc: " + ModMain.Localize("PRECISION_SHOT_DESC"));
 
             Debug.Log("[AAP] Mod initialization complete.");
+        }
+
+        /// <summary>
+        /// Re-applies def-level adjustments when the player changes settings in
+        /// the main menu. Safe to re-run: relative changes recompute from base
+        /// values captured on first apply, everything else sets absolute values.
+        /// </summary>
+        public override void OnConfigChanged()
+        {
+            try
+            {
+                var _ = Config;
+                Debug.Log("[AAP] Config changed - re-applying def adjustments.");
+                AbilityAdjustments.Apply(DefCache);
+                VehicleAdjustments.Apply(DefCache);
+                FesteringSkiesAdjustments.Apply(DefCache);
+                CorruptedHorizonsAdjustments.Apply(DefCache);
+                Debug.Log("[AAP] Config re-apply finished.");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AAP] OnConfigChanged failed: {e}");
+            }
         }
 
         public override void OnModDisabled()

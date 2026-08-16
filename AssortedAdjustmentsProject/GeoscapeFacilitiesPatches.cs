@@ -82,22 +82,19 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }*/
 
             // Access Lift Protection
-            var accessLift = cache.GetDef<BaseDef>("AccessLift_PhoenixFacilityDef");
+            // AAP 1.1 NOTE: the real flag is PhoenixFacilityDef.CannotDemolish (a field).
+            // The old property-name guessing (CanBeDemolished/IsIndestructible/...)
+            // never matched anything - the "still demolishable" report. Verified
+            // against the decompiled PhoenixFacilityDef.
+            var accessLift = cache.GetDef<PhoenixPoint.Common.Entities.PhoenixFacilityDef>("AccessLift_PhoenixFacilityDef");
             if (accessLift != null)
             {
-                var t = Traverse.Create(accessLift);
-                // Try all common boolean property names
-                foreach (var propName in new[] { "CanBeDemolished", "IsIndestructible", "Indestructible", "CanBeRemoved", "Demolishable" })
-                {
-                    try
-                    {
-                        t.Property(propName)?.SetValue(false);
-                        Debug.Log($"[AAP] AccessLift.{propName} set to false.");
-                    }
-                    catch { }
-                }
-                t.Property("MaxInstancesPerBase")?.SetValue(1);
-                Debug.Log("[AAP] Access Lift protection attempt complete.");
+                accessLift.CannotDemolish = true;
+                Debug.Log("[AAP] Access Lift: CannotDemolish = true.");
+            }
+            else
+            {
+                Debug.LogWarning("[AAP] AccessLift_PhoenixFacilityDef not found.");
             }
             // ===== Global Mist Repeller & Scanner max ranges (on GeoPhoenixBaseDef) =====
             /*{

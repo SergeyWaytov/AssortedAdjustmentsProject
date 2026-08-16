@@ -7,7 +7,7 @@
       "Value": "SergeyWaytov"
     }
   ],
-  "Version": "1.0.0",
+  "Version": "1.1.0",
   "Name": [
     {
       "Key": "English",
@@ -17,7 +17,7 @@
   "Description": [
     {
       "Key": "English",
-      "Value": "Comprehensive balance overhaul and essential UI enhancements. Features tactical ability rebalancing, weapon/armor adjustments, facility improvements, QoL UI additions, and bug fixes from TFTV and original AA. Mainly cribbing some notes off OG AA and https://github.com/Voland163/TFTV with some of my really-old ideas and bit of brainstorming"
+      "Value": "Comprehensive balance overhaul and essential UI enhancements. Features tactical ability rebalancing, weapon/armor adjustments, facility improvements, QoL UI additions, and bug fixes from TFTV and original AA. AAP 1.1: silent no-op fixes (ability costs, armor stats, personal abilities, vehicle ammo, loot, repair costs, Access Lift), configurable options (native ModConfig), and native support for Festering Skies (Behemoth/flyer slowdown) and Corrupted Horizons (Acheron nerf) alongside Kaos Engines. Mainly cribbing some notes off OG AA and https://github.com/Voland163/TFTV with some of my really-old ideas and bit of brainstorming"
     }
   ],
   "Dependencies": []

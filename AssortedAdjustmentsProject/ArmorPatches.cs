@@ -7,6 +7,13 @@ using UnityEngine;
 
 namespace SergeyWaytov.AssortedAdjustmentsProject
 {
+    /// <summary>
+    /// AAP 1.1 NOTE: Stealth/Accuracy/Speed/Perception on armour pieces live on the
+    /// piece's BodyPartAspectDef (TacticalItemDef.BodyPartAspectDef), not on the
+    /// item def itself - the old Traverse "_stealth"/"_accuracy" fallbacks were
+    /// silent no-ops. Only Armor is a real field on the item def. Verified against
+    /// the decompiled game assembly (BodyPartAspectDef.GetBaseStatModifications).
+    /// </summary>
     public static class ArmorAdjustments
     {
         public static void Apply(DefCache cache)
@@ -46,7 +53,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             if (neuralTorso != null && mountedTag != null)
                 Helpers.AddDefToArrayField(neuralTorso, "WeaponProficiencies", mountedTag);
 
-            Debug.Log("[AAP] ArmorAdjustments applied (all skins via Traverse).");
+            Debug.Log("[AAP] ArmorAdjustments applied (armor via item def, stats via BodyPartAspectDef).");
         }
 
         private static void SetStatsForAllMatching(DefRepository repo, string nameStartsWith,
@@ -55,49 +62,25 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             foreach (var def in repo.GetAllDefs<TacticalItemDef>()
                          .Where(d => d.name.StartsWith(nameStartsWith)))
             {
-                float oldStealth = GetFloatValue(def, "Stealth");
-                float oldAcc = GetFloatValue(def, "Accuracy");
-                float oldSpeed = GetFloatValue(def, "Speed");
-                float oldPerc = GetFloatValue(def, "Perception");
                 int oldArmor = (int)def.Armor;
-
                 def.Armor = armor;
-                SetStatValue(def, "Stealth", stealth);
-                SetStatValue(def, "Accuracy", accuracy);
-                SetStatValue(def, "Speed", speed);
-                SetStatValue(def, "Perception", perception);
 
-                float newStealth = GetFloatValue(def, "Stealth");
-                float newAcc = GetFloatValue(def, "Accuracy");
-                float newSpeed = GetFloatValue(def, "Speed");
-                float newPerc = GetFloatValue(def, "Perception");
-                Debug.Log($"[AAP] {def.name}: Armor {oldArmor}->{armor}, Stealth {oldStealth}->{newStealth}, Acc {oldAcc}->{newAcc}, Spd {oldSpeed}->{newSpeed}, Perc {oldPerc}->{newPerc}");
+                var aspect = def.BodyPartAspectDef;
+                if (aspect != null)
+                {
+                    Debug.Log($"[AAP] {def.name}: Armor {oldArmor}->{armor}, " +
+                              $"Stealth {aspect.Stealth}->{stealth}, Acc {aspect.Accuracy}->{accuracy}, " +
+                              $"Spd {aspect.Speed}->{speed}, Perc {aspect.Perception}->{perception} (aspect: {aspect.name}).");
+                    aspect.Stealth = stealth;
+                    aspect.Accuracy = accuracy;
+                    aspect.Speed = speed;
+                    aspect.Perception = perception;
+                }
+                else
+                {
+                    Debug.Log($"[AAP] {def.name}: Armor {oldArmor}->{armor} (no BodyPartAspectDef - stat mods skipped).");
+                }
             }
-        }
-
-        private static float GetFloatValue(object target, string propName)
-        {
-            var t = Traverse.Create(target);
-            string fieldName = "_" + char.ToLower(propName[0]) + propName.Substring(1);
-            var field = t.Field(fieldName);
-            if (field != null && field.FieldExists()) return field.GetValue<float>();
-            var prop = t.Property(propName);
-            return (prop != null && prop.PropertyExists()) ? prop.GetValue<float>() : 0f;
-        }
-
-        private static void SetStatValue(object target, string propName, float value)
-        {
-            var t = Traverse.Create(target);
-            string fieldName = "_" + char.ToLower(propName[0]) + propName.Substring(1);
-            var field = t.Field(fieldName);
-            if (field != null && field.FieldExists())
-            {
-                field.SetValue(value);
-                return;
-            }
-            var prop = t.Property(propName);
-            if (prop != null && prop.PropertyExists())
-                prop.SetValue(value);
         }
 
         private static void SetArmor(DefRepository repo, string defName, int armor)

@@ -27,9 +27,17 @@ using UnityEngine.UI;
 namespace SergeyWaytov.AssortedAdjustmentsProject
 {
     // ===== DISABLE RIGHT-CLICK MOVE (Dynamic Type Resolution) =====
+    // Configurable since AAP 1.1: some players found the change awkward with
+    // vehicles (Workshop feedback) - toggle "Disable right-click move" in the
+    // mod options (main menu).
     [HarmonyPatch]
     public static class DisableRightClickMovePatch
     {
+        public static bool Prepare()
+        {
+            return ModMain.Cfg?.DisableRightClickMove != false;
+        }
+
         [HarmonyTargetMethod]
         public static MethodBase TargetMethod()
         {
