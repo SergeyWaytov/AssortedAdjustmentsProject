@@ -68,6 +68,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             FesteringSkiesAdjustments.Apply(DefCache);
             CorruptedHorizonsAdjustments.Apply(DefCache);
 
+            // Limited War (ported from Sheepy's/Mad's Modnix-era mod; Harmony patches
+            // activate via Prepare() according to the mod options)
+            LimitedWar.Apply(DefCache);
+
             // Update soldier templates and create the fixed Jacob reference
             FixSoldierTemplates();
 

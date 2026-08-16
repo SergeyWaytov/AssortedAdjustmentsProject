@@ -90,6 +90,29 @@ Operative weapons were already patched in `WeaponPatches.cs` under the correct
 reports exactly which KE defs were found (`[AAP] DLC probe: …`), so a missing DLC is
 visible in Player.log instead of mysterious.
 
+### TechStrike (ported)
+The Modnix-era TechStrike mod reworked the NJ Technician Mech Arms into a real weapon.
+Ported into `WeaponPatches.cs`: payload replaced with Damage 10 / Piercing 40 /
+Paralyse 18 (exact reference values), on top of AAP's 8 charges.
+Log line: `[AAP] Mech Arms (Tech Strike): Damage 10, Pierce 40, Paralyze 18, charges 8.`
+
+### Limited War (ported)
+Sheepy's Modnix-era Limited War (the attached Nexus DLL), ported via Mad's updated
+adaptation — every patch target re-verified against the current game assembly.
+`LimitedWarAdjustments.cs`, gated by mod options (restart game after changing):
+- **Zoned attacks**: lost haven defenses against other factions destroy only the
+  attacked zone (recruit removed if it was a recruitment zone), log entries renamed
+  to "Haven (Zone)". Pandoran zoned attacks off by default.
+- **Attack limits**: no one-sided wars (same faction can't attack twice in a row),
+  max 3 simultaneous faction attacks map-wide, max 2 per faction, no new wars while
+  defending own havens against a Pandoran siege (limit 1). Phoenix is never limited.
+- **Alertness**: a faction that loses a haven/zone raises alertness on all its havens.
+- **Defense multipliers** (Mad's defaults, hardcoded): alert ×1.2, high alert ×1.1,
+  attacker-Pandoran ×1.2, defender Anu ×1.2, defender Synedrion ×1.2.
+- Optional: disable Pandoran attacks on Phoenix bases entirely (off by default).
+Startup log line: `[AAP][LW] Limited War enabled: …`; runtime events log as
+`[AAP][LW] …` (attack cancellations, zone conversions, defense boosts).
+
 ---
 
 ## Localization (fixed in 1.1 — the "EN stub hardcode" is gone)

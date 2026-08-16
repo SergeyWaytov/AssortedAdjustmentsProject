@@ -66,5 +66,43 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         [ConfigField(text: "CH: Acheron reinforcement WP cost",
             description: "Willpower cost of the Acheron's Call Reinforcements (vanilla 0 = free spam). 20 matches the Nerf Acheron mod.")]
         public int AcheronReinforceWPCost = 20;
-    }
+
+        // ── Limited War (ported from Sheepy's Limited War / Mad's adaptation) ──
+        // Changes take effect after a game restart.
+
+        [ConfigField(text: "Limited War: enable",
+            description: "Curbs AI-vs-AI warring: zoned haven destruction, attack limits, alertness on losses, defense multipliers. Phoenix itself is never limited. Restart game after changing.")]
+        public bool EnableLimitedWar = true;
+
+        [ConfigField(text: "LW: faction attacks damage zones only",
+            description: "A lost haven defense against another faction destroys only the attacked zone instead of the whole haven.")]
+        public bool LWZonedFactionAttacks = true;
+
+        [ConfigField(text: "LW: Pandoran attacks damage zones only",
+            description: "Same as above but for Pandoran attacks (off by default - keeps alien threat lethal).")]
+        public bool LWZonedPandoranAttacks = false;
+
+        [ConfigField(text: "LW: attacks raise alertness",
+            description: "When a faction loses a haven (or a zone), all its havens raise alertness.")]
+        public bool LWAttacksRaiseAlertness = true;
+
+        [ConfigField(text: "LW: stop one-sided wars",
+            description: "The same faction cannot attack twice in a row - wars alternate.")]
+        public bool LWStopOneSidedWar = true;
+
+        [ConfigField(text: "LW: global attack limit (-1 off)",
+            description: "Maximum simultaneous faction-vs-faction haven attacks on the map. Default 3, -1 disables.")]
+        public int LWGlobalAttackLimit = 3;
+
+        [ConfigField(text: "LW: per-faction attack limit (-1 off)",
+            description: "Maximum simultaneous attacks by one faction. Default 2, -1 disables.")]
+        public int LWFactionAttackLimit = 2;
+
+        [ConfigField(text: "LW: siege protection limit (-1 off)",
+            description: "A faction defending this many of its own havens against Pandorans starts no new wars. Default 1, -1 disables.")]
+        public int LWSiegeProtectionLimit = 1;
+
+        [ConfigField(text: "LW: disable Pandoran attacks on Phoenix bases",
+            description: "Pandorans never assault Phoenix bases (off by default).")]
+        public bool LWDisablePandoranBaseAttacks = false;    }
 }

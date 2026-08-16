@@ -6,6 +6,7 @@ using PhoenixPoint.Tactical.Entities.DamageKeywords;
 using PhoenixPoint.Tactical.Entities.Weapons;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -26,13 +27,27 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 Log("Siren Injector viral damage set to 3.");
             }
 
-            // ===== NJ Technician Mech Arms =====
+            // ===== NJ Technician Mech Arms ("Tech Strike" rework) =====
+            // Ported from the Modnix-era TechStrike mod: the Mech Arms get a real
+            // attack payload (10 damage / 40 piercing / 18 paralysing), replacing
+            // their vanilla keyword list. AAP adds 8 charges on top.
             var mechArms = cache.GetDef<WeaponDef>("NJ_Technician_MechArms_WeaponDef");
             if (mechArms != null)
             {
+                var damageKeyword = cache.GetDef<DamageKeywordDef>("Damage_DamageKeywordDataDef");
+                var pierceKeyword = cache.GetDef<DamageKeywordDef>("Piercing_DamageKeywordDataDef");
+                var paralyseKeyword = cache.GetDef<DamageKeywordDef>("Paralysing_DamageKeywordDataDef");
+                if (mechArms.DamagePayload != null && damageKeyword != null && pierceKeyword != null && paralyseKeyword != null)
+                {
+                    mechArms.DamagePayload.DamageKeywords = new List<DamageKeywordPair>
+                    {
+                        new DamageKeywordPair { DamageKeywordDef = damageKeyword, Value = 10f },
+                        new DamageKeywordPair { DamageKeywordDef = pierceKeyword, Value = 40f },
+                        new DamageKeywordPair { DamageKeywordDef = paralyseKeyword, Value = 18f },
+                    };
+                }
                 mechArms.ChargesMax = 8;
-                AddDamageKeyword(mechArms, "Paralysing_DamageKeywordDataDef", 18f, cache);
-                Log("Mech Arms: charges=8, Paralyze 18 added.");
+                Log("Mech Arms (Tech Strike): Damage 10, Pierce 40, Paralyze 18, charges 8.");
             }
 
             // ===== Laser Array =====
