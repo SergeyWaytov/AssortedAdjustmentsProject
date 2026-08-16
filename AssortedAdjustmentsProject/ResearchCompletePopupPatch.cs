@@ -126,6 +126,17 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 yield break;
             }
 
+            // Strip any legacy lore text that earlier (term-injection era) builds
+            // may have baked into the vanilla description - it could arrive
+            // truncated and in the wrong language. Cut at our lore's colored
+            // header, which only ever comes from AAP text.
+            int legacyPos = targetText.text.IndexOf("<color=#A0A0FF>—", StringComparison.Ordinal);
+            if (legacyPos >= 0)
+            {
+                Debug.Log($"[AAP] InjectLore: stripped {targetText.text.Length - legacyPos} chars of legacy lore text before appending.");
+                targetText.text = targetText.text.Substring(0, legacyPos).TrimEnd();
+            }
+
             if (!targetText.text.EndsWith(extraText))
             {
                 targetText.text += extraText;
@@ -134,6 +145,56 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             else
             {
                 Debug.Log("[AAP] Text already contains lore, skipping.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Removes lore text that earlier builds appended directly into the vanilla
+    /// localization terms (it could persist across sessions, truncated and in
+    /// the wrong language). Runs at every geoscape level start so the Research
+    /// screen, Phoenixpedia and any other term-driven surface show clean
+    /// vanilla text again; the readable lore comes from the popup stub above.
+    /// </summary>
+    internal static class LegacyLoreCleanup
+    {
+        private const string LoreHeaderMarker = "<color=#A0A0FF>—";
+
+        internal static void Run()
+        {
+            try
+            {
+                var cache = ModMain.DefCache;
+                if (cache == null) return;
+                string[] researchDefs = { "PX_Alien_Mindfragger_ResearchDef", "PX_PyschicAttack_ResearchDef" };
+
+                foreach (string defName in researchDefs)
+                {
+                    var research = cache.GetDef<PhoenixPoint.Geoscape.Entities.Research.ResearchDef>(defName);
+                    string key = research?.ViewElementDef?.CompleteText?.LocalizationKey;
+                    if (string.IsNullOrEmpty(key)) continue;
+
+                    foreach (var source in I2.Loc.LocalizationManager.Sources)
+                    {
+                        var term = source.GetTermData(key);
+                        if (term == null) continue;
+                        for (int i = 0; i < term.Languages.Length; i++)
+                        {
+                            string text = term.Languages[i];
+                            if (string.IsNullOrEmpty(text)) continue;
+                            int pos = text.IndexOf(LoreHeaderMarker, StringComparison.Ordinal);
+                            if (pos >= 0)
+                            {
+                                term.Languages[i] = text.Substring(0, pos);
+                                Debug.Log($"[AAP] Research lore cleanup: stripped legacy text from '{key}' (language index {i}, {text.Length - pos} chars).");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AAP] Research lore cleanup failed: {e.Message}");
             }
         }
     }

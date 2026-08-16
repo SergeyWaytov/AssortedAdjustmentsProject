@@ -46,7 +46,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             var _ = Config;   // cache settings before modules read them
             ImportLocalization();   // AAP_ keys must exist before anything localizes
             DefCache = new DefCache();
-            // Lore display is handled at render layer (LoreDisplayPatches) - no term mutation.
+            // Lore: popup stub (ResearchCompletePopupPatch) + legacy term cleanup at level start.
 
 
 

@@ -53,10 +53,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         {
             try
             {
-                // Strip any lore text that earlier builds injected into the
-                // vanilla terms (could persist truncated from test sessions);
-                // display is now handled at render layer by LoreDisplayPatches.
-                LoreDisplay.CleanupLegacyTermLore();
+                // Strip lore text that the term-injection-era builds appended into
+                // the vanilla terms (could persist truncated / wrong language).
+                // The readable lore now lives only in the research-complete popup.
+                LegacyLoreCleanup.Run();
 
                 var phoenix = __instance?.PhoenixFaction;
                 if (phoenix?.Research == null) return;
