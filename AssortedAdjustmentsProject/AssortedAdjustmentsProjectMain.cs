@@ -46,6 +46,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             var _ = Config;   // cache settings before modules read them
             ImportLocalization();   // AAP_ keys must exist before anything localizes
             DefCache = new DefCache();
+            InjectLoreIntoResearchDescriptions();   // lore into vanilla research terms (popup + archive)
 
 
 
@@ -115,12 +116,27 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         /// approach as TFTV) is what makes AAP_ localization keys resolve in
         /// every language column of the CSV. Without it, Localize() returns
         /// nothing and texts fall back to hardcoded English.
+        /// NOTE: Assembly.Location is unreliable inside the Unity player
+        /// (log showed "Invalid path") - use the mod's registered directory
+        /// from the modding API instead, with the assembly path as fallback.
         /// </summary>
         private void ImportLocalization()
         {
             try
             {
-                string modDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string modDir = null;
+                try { modDir = Instance?.Entry?.Directory; } catch { }
+                if (string.IsNullOrEmpty(modDir) || !System.IO.Directory.Exists(modDir))
+                {
+                    try { modDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location); }
+                    catch { modDir = null; }
+                }
+                if (string.IsNullOrEmpty(modDir))
+                {
+                    Debug.LogWarning("[AAP] Localization: could not resolve mod directory.");
+                    return;
+                }
+
                 string csvPath = Path.Combine(modDir, "Assets", "Localization", "AAP_Localization.csv");
                 if (!File.Exists(csvPath))
                 {
@@ -141,6 +157,71 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             {
                 Debug.LogError($"[AAP] Localization import failed: {e}");
             }
+        }
+
+        /// <summary>
+        /// Appends the psychic bonus lore to the VANILLA research description
+        /// localization terms (English + Russian). This makes the lore visible
+        /// everywhere the description is rendered - the research completion
+        /// popup AND the permanent "Unlocked Techs"/Phoenixpedia archive -
+        /// instead of only the one-shot popup. The popup text-scan patch stays
+        /// as a fallback and skips itself when the lore is already present.
+        /// </summary>
+        private void InjectLoreIntoResearchDescriptions()
+        {
+            try
+            {
+                int injected = 0;
+                injected += InjectResearchLore("PX_Alien_Mindfragger_ResearchDef", "MINDFRAGGER_LORE");
+                injected += InjectResearchLore("PX_PyschicAttack_ResearchDef", "PSYCHIC_INFLUENCES_LORE");
+                Debug.Log($"[AAP] Research lore: injected into {injected} research descriptions.");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AAP] Research lore injection failed: {e}");
+            }
+        }
+
+        private int InjectResearchLore(string researchDefName, string loreKey)
+        {
+            var research = DefCache?.GetDef<ResearchDef>(researchDefName);
+            string descKey = research?.ViewElementDef?.Description?.LocalizationKey;
+            if (string.IsNullOrEmpty(descKey))
+            {
+                Debug.LogWarning($"[AAP] Research lore: no description key for {researchDefName}.");
+                return 0;
+            }
+
+            string lore = Localize(loreKey);
+            if (string.IsNullOrEmpty(lore) || lore.Contains("MISSING KEY"))
+            {
+                Debug.LogWarning($"[AAP] Research lore: key {loreKey} did not resolve - skipping.");
+                return 0;
+            }
+
+            int changed = 0;
+            foreach (var source in I2.Loc.LocalizationManager.Sources)
+            {
+                var term = source.GetTermData(descKey);
+                if (term == null) continue;
+
+                foreach (string language in new[] { "English", "Russian" })
+                {
+                    int idx = source.GetLanguageIndex(language);
+                    if (idx < 0) continue;
+                    string current = term.GetTranslation(idx);
+                    if (string.IsNullOrEmpty(current) || current.Contains("— Whispers from the Silver") || current.Contains("— Шёпот сереброглазого") || current.Contains("Psychic Influences breakthrough") || current.Contains("Прорыв: Психические влияния"))
+                        continue; // already injected
+                    term.SetTranslation(idx, current + lore, null);
+                    changed++;
+                }
+                if (changed > 0) break;
+            }
+
+            Debug.Log(changed > 0
+                ? $"[AAP] Research lore: appended to '{descKey}' ({researchDefName}) in {changed} languages."
+                : $"[AAP] Research lore: could not patch '{descKey}' ({researchDefName}).");
+            return changed > 0 ? 1 : 0;
         }
 
         private void FixSoldierTemplates()

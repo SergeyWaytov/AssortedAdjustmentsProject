@@ -33,19 +33,16 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 if (typeSettings?.Tag == null) continue;
                 string tagName = typeSettings.Tag.name;
 
-                if (tagName.Contains("Mutat"))
+                // Mutations repair for free. Bionics are left at their vanilla
+                // multiplier (0.5) - the 1.0 log line in the first 1.1 build
+                // actually doubled bionic repair costs against the design
+                // philosophy of never adding costs to the player.
+                if (tagName.Contains("Mutat") && typeSettings.RepairCost != 0f)
                 {
                     float old = typeSettings.RepairCost;
                     typeSettings.RepairCost = 0f;
                     changed++;
                     Debug.Log($"[AAP] Repair cost for '{tagName}': {old} -> 0 (mutations repair for free).");
-                }
-                else if (tagName.Contains("Bionic") && typeSettings.RepairCost != 1f)
-                {
-                    float old = typeSettings.RepairCost;
-                    typeSettings.RepairCost = 1f;
-                    changed++;
-                    Debug.Log($"[AAP] Repair cost for '{tagName}': {old} -> 1 (bionics at normal price).");
                 }
             }
 
