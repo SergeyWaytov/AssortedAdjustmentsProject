@@ -31,7 +31,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         // Stored defaults for restoring the empty slot text
         internal static Color emptySlotDefaultColor = new Color32(0, 0, 0, 128);
         internal static string emptySlotDefaultText = "EMPTY";
-        internal static string emptySlotScrapText = "SCRAP AIRCRAFT?";
+        // Localized (EN + RU) via AAP_Localization.csv
+        internal static string emptySlotScrapText => ModMain.Localize("SCRAP_AIRCRAFT");
 
         private class ContainerInfo
         {
@@ -267,7 +268,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                     if (context.ViewerFaction.Vehicles.Count() <= 1)
                     {
                         GameUtl.GetMessageBox().ShowSimplePrompt(
-                            "This is Phoenix Point's last aircraft available",
+                            ModMain.Localize("LAST_AIRCRAFT"),
                             MessageBoxIcon.Error,
                             MessageBoxButtons.OK,
                             _ => { },

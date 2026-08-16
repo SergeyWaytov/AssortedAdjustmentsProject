@@ -126,7 +126,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                         if (isSquadInExitZone)
                         {
                             GameUtl.GetMessageBox().ShowSimplePrompt(
-                                "Evacuate Squad?",
+                                ModMain.Localize("EVAC_PROMPT"),
                                 MessageBoxIcon.Question,
                                 MessageBoxButtons.YesNo,
                                 OnEvacuateSquadConfirmationResult,

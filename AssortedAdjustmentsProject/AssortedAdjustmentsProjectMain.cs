@@ -7,7 +7,9 @@ using PhoenixPoint.Tactical.Entities.Abilities;
 using PhoenixPoint.Geoscape.Entities.Research;   // for ResearchDef
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
 using I2.Loc;
 
@@ -42,6 +44,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             Debug.Log("=========================================");
 
             var _ = Config;   // cache settings before modules read them
+            ImportLocalization();   // AAP_ keys must exist before anything localizes
             DefCache = new DefCache();
 
 
@@ -104,6 +107,40 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         {
             harmony?.UnpatchAll("SergeyWaytov_AssortedAdjustmentsProject");
             Debug.Log("[AAP] Mod disabled.");
+        }
+
+        /// <summary>
+        /// Imports the mod's localization CSV into the game's I2 Loc source.
+        /// The game does NOT auto-load mod CSVs - this manual import (same
+        /// approach as TFTV) is what makes AAP_ localization keys resolve in
+        /// every language column of the CSV. Without it, Localize() returns
+        /// nothing and texts fall back to hardcoded English.
+        /// </summary>
+        private void ImportLocalization()
+        {
+            try
+            {
+                string modDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string csvPath = Path.Combine(modDir, "Assets", "Localization", "AAP_Localization.csv");
+                if (!File.Exists(csvPath))
+                {
+                    Debug.LogWarning($"[AAP] Localization CSV not found: {csvPath}");
+                    return;
+                }
+
+                string csv = File.ReadAllText(csvPath);
+                if (!csv.EndsWith("\n")) csv += "\n";
+
+                var source = I2.Loc.LocalizationManager.Sources[0];
+                int before = source.mTerms.Count;
+                source.Import_CSV(string.Empty, csv, I2.Loc.eSpreadsheetUpdateMode.AddNewTerms, ',');
+                int added = source.mTerms.Count - before;
+                Debug.Log($"[AAP] Localization: imported {added} terms from AAP_Localization.csv.");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AAP] Localization import failed: {e}");
+            }
         }
 
         private void FixSoldierTemplates()
@@ -193,7 +230,9 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
         public static string Localize(string key)
         {
-            return I2.Loc.LocalizationManager.GetTranslation("AAP_" + key);
+            // "\n" sequences in CSV values are literal escapes - convert them
+            // so multi-paragraph lore texts stay single-line in the CSV.
+            return I2.Loc.LocalizationManager.GetTranslation("AAP_" + key)?.Replace("\\n", "\n");
         }
 
         

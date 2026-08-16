@@ -49,10 +49,11 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                     "E_ViewElement [AAP_PrecisionShot_AbilityDef]"
                 ) as TacticalAbilityViewElementDef;
 
-                precisionShot.ViewElementDef.DisplayName1 = new LocalizedTextBind("Precision Shot", true);
-                precisionShot.ViewElementDef.Description = new LocalizedTextBind(
-                    "The next attack costs 0 AP and gains +20% accuracy. Costs 4 WP. Limited to 1 use per turn.",
-                    true);
+                // Localized via AAP_Localization.csv (EN + RU). The old
+                // LocalizedTextBind("...", true) hardcoded English: the second
+                // constructor argument is doNotLocalize, not a localize flag.
+                precisionShot.ViewElementDef.DisplayName1 = new LocalizedTextBind("AAP_PRECISION_SHOT");
+                precisionShot.ViewElementDef.Description = new LocalizedTextBind("AAP_PRECISION_SHOT_DESC");
 
                 precisionShot.ActionPointCost = 0f;
                 precisionShot.WillPointCost = 4f;
