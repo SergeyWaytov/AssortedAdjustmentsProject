@@ -53,6 +53,13 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         {
             try
             {
+                // The game can rebuild its I2 language sources while loading a save,
+                // reverting the research-lore term edits made at boot. Re-check (and
+                // re-inject if needed) after the geoscape level is up - the Contains
+                // guards make this idempotent, and the diagnostic line shows whether
+                // the terms survived the load.
+                ModMain.InjectLoreIntoResearchDescriptions();
+
                 var phoenix = __instance?.PhoenixFaction;
                 if (phoenix?.Research == null) return;
 

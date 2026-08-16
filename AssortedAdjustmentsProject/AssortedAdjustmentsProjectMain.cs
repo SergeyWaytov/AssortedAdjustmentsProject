@@ -172,7 +172,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         /// makes the lore visible everywhere at once. The popup text-scan
         /// patch stays as a fallback and skips itself once the lore is present.
         /// </summary>
-        private void InjectLoreIntoResearchDescriptions()
+        internal static void InjectLoreIntoResearchDescriptions()
         {
             try
             {
@@ -187,7 +187,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
         }
 
-        private int InjectResearchLore(string researchDefName, string loreKey)
+        private static int InjectResearchLore(string researchDefName, string loreKey)
         {
             var research = DefCache?.GetDef<ResearchDef>(researchDefName);
             if (research?.ViewElementDef == null)
@@ -221,16 +221,34 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 var term = source.GetTermData(descKey);
                 if (term == null) continue;
 
+                bool alreadyPresent = false;
                 foreach (string language in new[] { "English", "Russian" })
                 {
                     int idx = source.GetLanguageIndex(language);
                     if (idx < 0) continue;
                     string current = term.GetTranslation(idx);
-                    if (string.IsNullOrEmpty(current) || current.Contains("— Whispers from the Silver") || current.Contains("— Шёпот сереброглазого") || current.Contains("Psychic Influences breakthrough") || current.Contains("Прорыв: Психические влияния"))
-                        continue; // already injected
+                    bool hasLore = current != null &&
+                        (current.Contains("— Whispers from the Silver") || current.Contains("— Шёпот сереброглазого") ||
+                         current.Contains("Psychic Influences breakthrough") || current.Contains("Прорыв: Психические влияния"));
+                    if (hasLore)
+                    {
+                        alreadyPresent = true;
+                        continue;
+                    }
+                    if (string.IsNullOrEmpty(current)) continue;
                     term.SetTranslation(idx, current + lore, null);
                     changed++;
                 }
+
+                // Diagnostic: show what the term actually contains right now, so a
+                // source rebuild that reverts the injection is visible in the log.
+                int enIdx = source.GetLanguageIndex("English");
+                int ruIdx = source.GetLanguageIndex("Russian");
+                string enNow = enIdx >= 0 ? (term.GetTranslation(enIdx) ?? "") : "";
+                string ruNow = ruIdx >= 0 ? (term.GetTranslation(ruIdx) ?? "") : "";
+                Debug.Log($"[AAP] Research lore check '{descKey}': EN ends '...{enNow.Substring(Math.Max(0, enNow.Length - 40)).Replace("\n", " ")}', " +
+                          $"RU ends '...{ruNow.Substring(Math.Max(0, ruNow.Length - 40)).Replace("\n", " ")}' (alreadyPresent={alreadyPresent}).");
+
                 if (changed > 0) break;
             }
 
