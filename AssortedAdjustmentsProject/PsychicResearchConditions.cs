@@ -53,9 +53,12 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         {
             try
             {
-                // Strip lore text that the term-injection-era builds appended into
-                // the vanilla terms (could persist truncated / wrong language).
-                // The readable lore now lives only in the research-complete popup.
+                // Re-assert after save load: the game can rebuild its language
+                // sources (dropping our imported terms) - re-import and re-swap
+                // the lore binds, and strip any lore text that the old
+                // term-injection builds persisted into the vanilla terms.
+                ModMain.Self?.ImportLocalization();
+                ResearchLoreBinds.Apply();
                 LegacyLoreCleanup.Run();
 
                 var phoenix = __instance?.PhoenixFaction;

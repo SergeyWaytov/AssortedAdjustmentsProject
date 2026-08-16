@@ -6,10 +6,72 @@ using UnityEngine;
 using UnityEngine.UI;
 using Base.Core;
 using Base.Defs;
+using Base.UI;
 using PhoenixPoint.Common.View.ViewModules;
+using PhoenixPoint.Geoscape.Entities.Research;
 
 namespace SergeyWaytov.AssortedAdjustmentsProject
 {
+    /// <summary>
+    /// Persistent lore, take three - and the clean one: instead of editing the
+    /// game's localization TERMS (which arrived truncated / language-mixed and
+    /// got reverted by source rebuilds), the research def's own CompleteText
+    /// bind is swapped to our imported AAP_*_FULL term (vanilla text + lore,
+    /// EN and RU, with real newlines - the I2 CSV parser supports multi-line
+    /// quoted fields, verified in LocalizationReader.ReadCSV).
+    /// Every surface that renders a completed research - the Researches screen
+    /// tooltip (GetTextByState(Completed)), the research-complete modal, and
+    /// the Phoenixpedia entry - reads this one bind, so the lore persists
+    /// everywhere in the player's language. The vanilla term is never touched.
+    /// </summary>
+    internal static class ResearchLoreBinds
+    {
+        internal static void Apply()
+        {
+            try
+            {
+                int swapped = 0;
+                swapped += Swap("PX_Alien_Mindfragger_ResearchDef", "AAP_MINDFRAGGER_FULL");
+                swapped += Swap("PX_PyschicAttack_ResearchDef", "AAP_PSYCHIC_INFLUENCES_FULL");
+                Debug.Log($"[AAP] Research lore binds: {swapped}/2 research CompleteText binds point at AAP full-text terms.");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AAP] Research lore binds failed: {e.Message}");
+            }
+        }
+
+        private static int Swap(string researchDefName, string fullTermKey)
+        {
+            var research = ModMain.DefCache?.GetDef<ResearchDef>(researchDefName);
+            if (research?.ViewElementDef == null)
+            {
+                Debug.LogWarning($"[AAP] Research lore binds: {researchDefName} not found.");
+                return 0;
+            }
+
+            // Only swap if our composed term actually imported - otherwise the
+            // screen would show a missing-key placeholder.
+            bool termImported = false;
+            foreach (var source in I2.Loc.LocalizationManager.Sources)
+            {
+                if (source.GetTermData(fullTermKey) != null) { termImported = true; break; }
+            }
+            if (!termImported)
+            {
+                Debug.LogWarning($"[AAP] Research lore binds: term '{fullTermKey}' not imported - keeping vanilla text.");
+                return 0;
+            }
+
+            if (research.ViewElementDef.CompleteText?.LocalizationKey == fullTermKey)
+                return 1; // already swapped (idempotent re-apply)
+
+            research.ViewElementDef.CompleteText = new LocalizedTextBind(fullTermKey);
+            Debug.Log($"[AAP] Research lore binds: {researchDefName}.CompleteText -> {fullTermKey}.");
+            return 1;
+        }
+    }
+
     [HarmonyPatch]
     public static class ResearchCompletePopupPatch
     {

@@ -15,3 +15,33 @@ AAP_PSYCHIC_INFLUENCES_LORE,Text,,\n\n<color=#A0A0FF>— Psychic Influences brea
 AAP_EVAC_PROMPT,Text,,Evacuate Squad?,Эвакуировать отряд?
 AAP_SCRAP_AIRCRAFT,Text,,SCRAP AIRCRAFT?,УТИЛИЗИРОВАТЬ ТРАНСПОРТ?
 AAP_LAST_AIRCRAFT,Text,,This is Phoenix Point's last aircraft available,Это последний доступный летательный аппарат Феникса
+AAP_MINDFRAGGER_FULL,Text,,"Summary: Mindfraggers are a bio-weapon designed to control, and possibly abduct human subjects. The creature’s head detaches from the body during an attack, becoming permanently linked to its host. Fortunately, killing the attached creature will remove it safely, restoring the victim to a normal state of mind.
+
+<color=#A0A0FF>— Whispers from the Silver-Eyed Man —</color>
+Not long after Phoenix Point's beacon blazed back to life and the first Manticore scouts returned, a stranger appeared at our makeshift gate. No aircraft, no escort – just a figure who walked out of the mist and knocked. His eyes, a disquieting silver-steel, seemed to hold the weight of centuries. He offered no name, only a cryptic congratulations: “The ashes have stirred. Good. You'll need this.”
+
+The “gift” was a dense chemical formula scrawled on decaying paper, a recipe for something he called the Mind Awakening Elixir. It promised to fortify the human psyche against the alien corruption that would soon pour from the nests. Our best scientists tried to replicate it, but the compound refused to stabilise. The promise of psychic armour crumbled into another false hope, and the project was quietly shelved – no sense in dangling empty miracles before the troops.
+
+Then, during the autopsy of a captured Mindfragger, a bio-chemist noticed a pattern. The parasitic interface the creature used to dominate its victims shared an uncanny molecular signature with the stranger's formula. A cross-referencing frenzy ensued. The alien's own biology held the missing key. From the marriage of human desperation and pandoran physiology, a watered-down but functional dietary supplement was born. It won't turn anyone into a telepath, but it does thicken the mind's walls – a little harder to panic, a little harder to control.","Отчет: промыватели — это биологическое оружие, предназначенное для контроля и, возможно, похищения людей. Голова существа отрывается от тела во время нападения, становясь постоянно связанной с его хозяином. К счастью, если убить прикрепившееся существо, то жертва безопасно вернется в сознательное состояние.
+
+<color=#A0A0FF>— Шёпот сереброглазого человека —</color>
+Вскоре после того, как маяк Феникс-Пойнт вновь вспыхнул, а первые разведчики «Мантикоры» вернулись, у наших временных ворот появился незнакомец. Ни самолёта, ни сопровождения — просто фигура, вышедшая из тумана и постучавшаяся в дверь. Его глаза, тревожного серебристо-стального оттенка, словно хранили тяжесть столетий. Он не назвал имени, лишь загадочно поздравил: «Пепел зашевелился. Хорошо. Вам это пригодится».
+
+«Даром» оказалась плотная химическая формула, нацарапанная на истлевающей бумаге, — рецепт чего-то, что он назвал Эликсиром Пробуждения Разума. Он обещал укрепить человеческую психику перед лицом инопланетной порчи, которая скоро хлынет из гнездовий. Наши лучшие учёные пытались воспроизвести состав, но соединение отказывалось стабилизироваться. Обещание психической брони рассыпалось в ещё одну ложную надежду, и проект тихо свернули — нечего дразнить войска пустыми чудесами.
+
+Потом, при вскрытии пойманного промывателя, биохимик заметил закономерность. Паразитический интерфейс, которым существо подчиняло жертв, имел поразительное молекулярное сходство с формулой незнакомца. Началась лихорадочная сверка данных. Ключом оказалась биология самого пришельца. Из союза человеческого отчаяния и пандоранской физиологии родилась разбавленная, но работающая пищевая добавка. Она не превратит никого в телепата, но делает стены разума толще — чуть сложнее вызвать панику, чуть сложнее подчинить контроль."
+AAP_PSYCHIC_INFLUENCES_FULL,Text,,"Intense analysis has shown that the Pandoran ability to instill fear in humans is a direct result of an overstimulation of the amygdala through a form of infrasound combined with some kind of psychic influence. Based on current observations, only certain Pandoran species are able to produce the effect, although the exact method through which they do so remains unknown. A dampening module has been developed to negate this type of effect.
+
+<color=#A0A0FF>— Psychic Influences breakthrough —</color>
+The original elixir, combined with the knowledge ripped from alien nerve-clusters, finally yielded a stable gene therapy. The silver-eyed stranger's formula was never meant to be swallowed – it was a blueprint for rewriting the human mind's architecture.
+
+The treatment permanently elevates a soldier's psychic resilience to near-superhuman levels, forming an invisible shield that only the most cataclysmic mental assaults can breach. As an unexpected side-effect, operatives already gifted with outward psychic abilities report their mind-control efforts becoming eerily more potent – as if the aliens suddenly find their own tricks turned against them with familiar ease.
+
+The stranger was never seen again, but his gift now hums quietly in the blood of every Phoenix operative, a silent thank-you to a messenger who knew more than he ever told.","Интенсивный анализ показал, что способность пандоранов прививать страх людям является прямым следствием сверхстимуляции миндалин через инфразвук, который действует на людей на психологическом уровне. Данные, основанные на текущих исследованиях, говорят, что только некоторые особи пандоранов могут оказать такой эффект. Хотя точный метод, с помощью которого они это делают, остается неизвестным. Чтобы свети на нет этот эффект, разработан демпфирующий модуль.
+
+<color=#A0A0FF>— Прорыв: Психические влияния —</color>
+Оригинальный эликсир в сочетании со знаниями, вырванными из чужих нервных узлов, наконец дал стабильную генную терапию. Формула сереброглазого незнакомца никогда не предназначалась для приёма внутрь — это был чертёж перестройки архитектуры человеческого разума.
+
+Лечение навсегда поднимает психическую устойчивость солдата до почти сверхчеловеческого уровня, образуя невидимый щит, который пробить могут лишь самые сокрушительные ментальные атаки. Непредвиденным побочным эффектом стало то, что оперативники, уже одарённые внешними психическими способностями, отмечают: их попытки контроля разума стали жутко могущественнее — будто пришельцы внезапно видят собственные трюки, обращённые против них же с лёгкой привычностью.
+
+Незнакомца больше не видели, но его дар теперь тихо гудит в крови каждого оперативника Феникса — безмолвное спасибо вестнику, знавшему больше, чем когда-либо говорил."

@@ -19,6 +19,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     {
         private Harmony harmony;
 
+        // Static self-reference so level-start patches can re-assert mod state
+        // (localization import + lore binds) after the game rebuilds sources.
+        internal static ModMain Self;
+
         // Static reference so Harmony patches can reach the cache
         public static DefCache DefCache { get; private set; }
 
@@ -44,9 +48,12 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             Debug.Log("=========================================");
 
             var _ = Config;   // cache settings before modules read them
+            Self = this;
             ImportLocalization();   // AAP_ keys must exist before anything localizes
             DefCache = new DefCache();
-            // Lore: popup stub (ResearchCompletePopupPatch) + legacy term cleanup at level start.
+            // Persistent lore: swap the two research defs' CompleteText to our
+            // full-text terms (popup stub stays as fallback; legacy cleanup at level start).
+            ResearchLoreBinds.Apply();
 
 
 
@@ -124,7 +131,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         /// (log showed "Invalid path") - use the mod's registered directory
         /// from the modding API instead, with the assembly path as fallback.
         /// </summary>
-        private void ImportLocalization()
+        internal void ImportLocalization()
         {
             try
             {
