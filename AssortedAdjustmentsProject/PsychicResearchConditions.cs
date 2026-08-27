@@ -1,4 +1,4 @@
-﻿// PsychicResearchConditions.cs – Final version (no text injection)
+// PsychicResearchConditions.cs – Final version (no text injection)
 using Base.Defs;
 using HarmonyLib;
 using PhoenixPoint.Geoscape.Entities.Research;
@@ -54,12 +54,13 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             try
             {
                 // Re-assert after save load: the game can rebuild its language
-                // sources (dropping our imported terms) - re-import and re-swap
-                // the lore binds, and strip any lore text that the old
-                // term-injection builds persisted into the vanilla terms.
+                // sources (dropping our imported terms), so re-import the CSV
+                // (now in Replace mode, so values refresh every load) and
+                // re-swap the lore binds. The legacy lore-stripping pass was
+                // removed in the Major Cleanup - it was stripping the mod's
+                // own lore out of the mod's own AAP_*_FULL terms.
                 ModMain.Self?.ImportLocalization();
                 ResearchLoreBinds.Apply();
-                LegacyLoreCleanup.Run();
 
                 var phoenix = __instance?.PhoenixFaction;
                 if (phoenix?.Research == null) return;

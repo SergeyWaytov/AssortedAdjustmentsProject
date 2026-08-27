@@ -52,7 +52,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             ImportLocalization();   // AAP_ keys must exist before anything localizes
             DefCache = new DefCache();
             // Persistent lore: swap the two research defs' CompleteText to our
-            // full-text terms (popup stub stays as fallback; legacy cleanup at level start).
+            // full-text AAP_*_FULL terms. The popup postfix and the legacy
+            // lore-stripping pass were removed in the Major Cleanup - the
+            // AAP_*_FULL terms now carry the full [vanilla + lore] text and
+            // are rendered untouched by the game's own UI on every surface.
             ResearchLoreBinds.Apply();
 
 
@@ -160,9 +163,14 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
                 var source = I2.Loc.LocalizationManager.Sources[0];
                 int before = source.mTerms.Count;
-                source.Import_CSV(string.Empty, csv, I2.Loc.eSpreadsheetUpdateMode.AddNewTerms, ',');
+                // Replace mode: refreshes term values on every load so CSV
+                // text edits take effect without needing a fresh-key. The old
+                // AddNewTerms mode skipped existing terms, which is why a
+                // second pass reported "imported 0 terms" and never restored
+                // values that the (now-removed) cleanup had stripped.
+                source.Import_CSV(string.Empty, csv, I2.Loc.eSpreadsheetUpdateMode.Replace, ',');
                 int added = source.mTerms.Count - before;
-                Debug.Log($"[AAP] Localization: imported {added} terms from AAP_Localization.csv.");
+                Debug.Log($"[AAP] Localization: CSV processed in Replace mode ({added} new term(s); existing AAP_ term values refreshed) from AAP_Localization.csv.");
             }
             catch (Exception e)
             {
