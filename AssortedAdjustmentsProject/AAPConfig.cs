@@ -35,6 +35,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
         public bool EnablePlentifulDrops = true;
 
+        // Thrown grenades land exactly on the aimed point (hand-thrown grenade
+        // items only; launchers/rockets/mortars untouched). Off = vanilla scatter.
+        public bool DisableGrenadeScatter = false;
+
         // ── Tunable values ────────────────────────────────────────────
 
         public int PersonalAbilitiesCount = 5;

@@ -87,3 +87,5 @@ AAP_CFG_LWSiegeProtectionLimit,Text,,LW: siege protection limit (-1 off),LW: л�
 AAP_CFG_LWSiegeProtectionLimit_DESC,Text,,"A faction defending this many of its own havens against Pandorans starts no new wars. Default 1, -1 disables.","Фракция, обороняющая столько своих убежищ от пандоранов, не начинает новых войн. По умолчанию 1, -1 отключает."
 AAP_CFG_LWDisablePandoranBaseAttacks,Text,,LW: disable Pandoran attacks on Phoenix bases,LW: отключить атаки пандоранов на базы Феникса
 AAP_CFG_LWDisablePandoranBaseAttacks_DESC,Text,,"Pandorans never assault Phoenix bases (off by default).","Пандораны никогда не штурмуют базы Феникса (по умолчанию выключено)."
+AAP_CFG_DisableGrenadeScatter,Text,,Disable grenade scatter,Отключить разброс гранат
+AAP_CFG_DisableGrenadeScatter_DESC,Text,,Thrown grenades land exactly on the aimed point. Hand-thrown grenade items only - launchers and mortars keep their spread. Takes effect immediately.,Брошенные гранаты попадают точно в точку прицеливания. Действует только на ручные гранаты - гранатомёты и миномёты сохраняют разброс. Вступает в силу сразу.
