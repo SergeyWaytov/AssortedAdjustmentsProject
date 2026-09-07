@@ -8,12 +8,15 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     /// <summary>
     /// Festering Skies (DLC3) adjustments, ported natively from the Modnix-era
     /// "Slowdown Alien Flyers / Behemoth" JSON modlet:
-    ///   - Behemoth geoscape speed & range
+    ///   - Behemoth geoscape speed &amp; range
     ///   - Pandoran geoscape flyer speeds (small/medium/large)
     /// Defs are looked up by GUID (the same GUIDs the JSON modlet patched),
     /// so this is naturally a no-op when the DLC is not installed.
     /// Relative changes (flyer percent) are computed from values captured on
     /// first apply so repeated applies stay idempotent.
+    /// AAP G2-A (restart-only): toggling EnableFesteringSkiesTweaks does NOT
+    /// live-reverse the def mutations. Apply() runs once at OnModEnabled;
+    /// OnConfigChanged no longer re-calls Apply(). Restart to apply changes.
     /// </summary>
     public static class FesteringSkiesAdjustments
     {
@@ -28,6 +31,9 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
         public static void Apply(DefCache cache)
         {
+            // AAP G2-A: early return is the restart-only contract. Toggling
+            // EnableFesteringSkiesTweaks requires a game restart to apply
+            // (see AAPConfig tooltip).
             var cfg = ModMain.Cfg;
             if (cfg == null || !cfg.EnableFesteringSkiesTweaks) return;
 

@@ -3,9 +3,10 @@ using PhoenixPoint.Geoscape.Entities;
 using PhoenixPoint.Geoscape.Entities.Sites;
 using PhoenixPoint.Geoscape.Levels;
 using PhoenixPoint.Geoscape.View;
+using PhoenixPoint.Tactical.Entities.Abilities;
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using TMPro;
 using UnityEngine;
@@ -31,44 +32,39 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             if (__instance == null || site == null) return;
             try
             {
-                var haven = Traverse.Create(site).Method("GetComponent", new[] { typeof(Type) })
-                    .GetValue<object>(AccessTools.TypeByName("PhoenixPoint.Geoscape.Entities.Sites.GeoHaven"));
+                // AAP U2: typed access chain replaces the reflected data path
+                // (the old Traverse-based chain hit a non-existent PersonalAbilities
+                // property on the template and silently returned nothing).
+                GeoHaven haven = site.GetComponent<GeoHaven>();
                 if (haven == null) return;
 
-                var data = Traverse.Create(haven).Method("GetRecruitData").GetValue<object>();
-                if (data == null) return;
-                var template = Traverse.Create(data).Property("SoldierTemplate").GetValue<object>();
-                if (template == null) return;
-
-                var abilities = Traverse.Create(template).Property("PersonalAbilities").GetValue<IList>();
+                Dictionary<int, TacticalAbilityDef> abilities =
+                    haven.AvailableRecruit?.Progression?.PersonalAbilities;
                 if (abilities == null || abilities.Count == 0) return;
 
-                var abilityNames = new List<string>();
-                foreach (var a in abilities)
-                {
-                    var viewDef = Traverse.Create(a).Property("ViewElementDef").GetValue<object>();
-                    string name = null;
-                    if (viewDef != null)
-                    {
-                        var displayName = Traverse.Create(viewDef).Property("DisplayName").GetValue<object>();
-                        if (displayName != null)
-                            name = Traverse.Create(displayName).Method("Localize").GetValue<string>();
-                    }
-                    abilityNames.Add(name ?? Traverse.Create(a).Field("name").GetValue<string>());
-                }
+                List<string> abilityNames = abilities
+                    .OrderBy(pair => pair.Key)
+                    .Select(pair => pair.Value?.ViewElementDef?.DisplayName1?.Localize() ?? pair.Value?.name)
+                    .Where(name => !string.IsNullOrEmpty(name))
+                    .ToList();
                 if (abilityNames.Count == 0) return;
 
                 Transform container = ((Component)__instance).transform.Find("InfoPanel/Content/StatsContainer");
                 if (container == null) return;
 
-                // Remove old custom rows
+                // AAP U2: cleanup uses AAP_ prefix (the cloned objects below are
+                // renamed AAP_Header / AAP_Entry) so we don't destroy vanilla
+                // Header/Entry rows that other code may have placed.
                 foreach (Transform child in container)
                 {
-                    if (child.name.StartsWith("Header") || child.name.StartsWith("Entry"))
+                    if (child.name.StartsWith("AAP_", StringComparison.Ordinal))
                         UnityEngine.Object.Destroy(child.gameObject);
                 }
 
-                var header = new GameObject("Header", typeof(RectTransform)).AddComponent<TextMeshProUGUI>();
+                // Q12-B: worldPositionStays=false is the correct mode for UI
+                // layout groups (the new child inherits the parent layout
+                // instead of fighting it with world-coords).
+                var header = new GameObject("AAP_Header", typeof(RectTransform)).AddComponent<TextMeshProUGUI>();
                 header.transform.SetParent(container, false);
                 header.text = Label;
                 header.fontSize = 16;
@@ -77,7 +73,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
                 foreach (string a in abilityNames)
                 {
-                    var entry = new GameObject("Entry", typeof(RectTransform)).AddComponent<TextMeshProUGUI>();
+                    var entry = new GameObject("AAP_Entry", typeof(RectTransform)).AddComponent<TextMeshProUGUI>();
                     entry.transform.SetParent(container, false);
                     entry.text = $"• {a}";
                     entry.fontSize = 14;

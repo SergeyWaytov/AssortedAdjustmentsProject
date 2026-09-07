@@ -6,9 +6,16 @@ using PhoenixPoint.Common.Entities.GameTags;
 
 namespace SergeyWaytov.AssortedAdjustmentsProject
 {
+    // AAP T9: this postfix must run BEFORE PrecisionShot_ApplyToPhoenixSnipers
+    // (Priority.Low). Jacob's runtime class-tag swap creates the Sniper tag
+    // that the PrecisionShot patch inspects. Priority.High.
     [HarmonyPatch(typeof(TacticalActor), "ProcessInstanceData")]
     public static class TutorialJacobFixPatch
     {
+        // AAP Q4-A: this is the deliberate fallback path. It runs when the
+        // Jacob template tag isn't already set at template-load time. Log
+        // when the fallback triggers so it's visible in Player.log.
+        [HarmonyPriority(Priority.High)]
         [HarmonyPostfix]
         public static void Postfix(TacticalActor __instance)
         {
@@ -41,7 +48,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 __instance.AddGameTags(addList);
             }
 
-            Debug.Log("[AAP] Swapped Jacob's class tag to Sniper.");
+            // Q4-A: deliberate fallback for tutorial; logs when it acts.
+            Debug.Log($"[AAP] Tutorial fallback fired: swapped Jacob's class tag from Assault to Sniper for actor {__instance.DisplayName} (template-load swap unavailable).");
         }
     }
 }

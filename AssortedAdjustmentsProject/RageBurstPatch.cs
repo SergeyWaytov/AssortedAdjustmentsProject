@@ -11,6 +11,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     {
         private const float ConeAngle = 12f;
         private const float SpreadMult = 1.8f;
+        // Q1: 5 shots is intentional. Laser AR + Rage Burst DPS abuse is a separate balance follow-up.
+        private const int ExecutionsCount = 5;
 
         public static void Apply(DefCache cache)
         {
@@ -25,9 +27,9 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
                 rageDef.ConeSpread = ConeAngle;
                 rageDef.ProjectileSpreadMultiplier = SpreadMult;
-                rageDef.ExecutionsCount = 5;   // static fallback
+                rageDef.ExecutionsCount = ExecutionsCount;   // static fallback
 
-                Debug.Log("[AAP] Rage Burst configured: cone " + ConeAngle + "°, spread " + SpreadMult + "x.");
+                Debug.Log($"[AAP] Rage Burst configured: cone {ConeAngle}°, spread {SpreadMult}x, {ExecutionsCount} executions (intentional).");
             }
             catch (System.Exception e)
             {

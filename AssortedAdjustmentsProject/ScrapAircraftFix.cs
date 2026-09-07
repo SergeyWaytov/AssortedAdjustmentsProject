@@ -6,6 +6,7 @@ using HarmonyLib;
 using PhoenixPoint.Common.Core;
 using PhoenixPoint.Common.Entities.Items;
 using PhoenixPoint.Geoscape.Entities;
+using PhoenixPoint.Geoscape.Entities.Interception.Equipments;
 using PhoenixPoint.Geoscape.Levels;
 using PhoenixPoint.Geoscape.View;
 using PhoenixPoint.Geoscape.View.ViewControllers;
@@ -25,20 +26,34 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     /// <summary>
     /// Allows scrapping of aircraft from the Personnel Roster screen.
     /// Hardened version with extensive null checks to prevent crashes.
+    /// AAP U4a: _geoRosterModule and _geoscapeModules are PROPERTIES
+    /// (not fields). The old Traverse.Field() calls silently returned
+    /// null, so RefreshScrapTriggers was never invoked -- no scrap
+    /// trigger was ever installed.
+    /// AAP U4b: GeoVehicle.Destroy() does NOT move installed equipment
+    /// to Phoenix storage. Transfer equipment before destroying, so the
+    /// player does not lose aircraft gear when scrapping.
+    /// AAP U4c: ContainerInfo carries object identity (GeoVehicle), not
+    /// a mutable name/index pair. The old code re-resolved the aircraft
+    /// by Name and removed by Index -- both of which mutate under the
+    /// same roster refresh, so the wrong row was sometimes removed.
+    /// AAP B6: empty-slot "EMPTY" literal now reads from
+    /// AAP_Localization.csv via ModMain.Localize("EMPTY_SLOT") (the
+    /// Init prefix no longer captures and overwrites it).
     /// </summary>
     internal static class EnableScrapAircraft
     {
-        // Stored defaults for restoring the empty slot text
+        // Stored defaults for restoring the empty slot text color
         internal static Color emptySlotDefaultColor = new Color32(0, 0, 0, 128);
-        internal static string emptySlotDefaultText = "EMPTY";
-        // Localized (EN + RU) via AAP_Localization.csv
+        // AAP B6: localized via AAP_Localization.csv (EN + RU).
+        internal static string emptySlotDefaultText => ModMain.Localize("EMPTY_SLOT");
         internal static string emptySlotScrapText => ModMain.Localize("SCRAP_AIRCRAFT");
 
-        private class ContainerInfo
+        // AAP U4c: identity-based container info (no mutable name/index).
+        private sealed class ContainerInfo
         {
-            public string Name;
-            public int Index;
-            public ContainerInfo(string n, int i) { Name = n; Index = i; }
+            public GeoVehicle Vehicle { get; }
+            public ContainerInfo(GeoVehicle vehicle) => Vehicle = vehicle;
         }
 
         internal static MethodInfo UpdateResourceInfoMethod =
@@ -65,7 +80,11 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                         if (t != null)
                         {
                             emptySlotDefaultColor = t.color;
-                            emptySlotDefaultText = t.text;
+                            // AAP B6: emptySlotDefaultText is now a property that
+                            // reads AAP_EMPTY_SLOT from the CSV. The Init prefix
+                            // no longer captures the vanilla text (the property is
+                            // read-only). The color is still captured above so the
+                            // refresh postfix can restore the original styling.
                         }
                     }
                 }
@@ -151,8 +170,9 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 {
                     var traverse = Traverse.Create(__instance);
                     var context = traverse.Property("Context").GetValue<GeoscapeViewContext>();
-                    var geoRosterModule = traverse.Field("_geoRosterModule").GetValue<UIModuleGeneralPersonelRoster>();
-                    var geoscapeModules = traverse.Field("_geoscapeModules").GetValue<GeoscapeModulesData>();
+                    // AAP U4a: _geoRosterModule and _geoscapeModules are PROPERTIES.
+                    var geoRosterModule = traverse.Property("_geoRosterModule").GetValue<UIModuleGeneralPersonelRoster>();
+                    var geoscapeModules = traverse.Property("_geoscapeModules").GetValue<GeoscapeModulesData>();
 
                     if (context?.ViewerFaction == null || geoRosterModule?.Groups == null || geoscapeModules == null)
                         return;
@@ -189,10 +209,14 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
                     // Only apply to real vehicles (not personnel rows with int.MaxValue capacity)
                     if (c.Container.MaxCharacterSpace == int.MaxValue) continue;
+                    // AAP U4c: identity-based -- only real GeoVehicle containers
+                    // become aircraft-scrap triggers. Skip anything that's not a vehicle.
+                    if (!(c.Container is GeoVehicle aircraft)) continue;
 
                     var etNew = emptySlot.AddComponent<EventTrigger>();
                     var emptySlotText = emptySlot.GetComponentInChildren<Text>(true);
-                    var info = new ContainerInfo(c.Container.Name, i);
+                    // AAP U4c: carry the GeoVehicle itself, not name+index.
+                    var info = new ContainerInfo(aircraft);
                     var originalColor = emptySlotText != null ? emptySlotText.color : Color.white;
 
                     // Pointer enter: highlight
@@ -234,8 +258,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 {
                     if (context?.ViewerFaction?.Vehicles == null) return;
 
-                    var aircraft = context.ViewerFaction.Vehicles.FirstOrDefault(v => v.Name == info.Name);
-                    if (aircraft == null) return;
+                    // AAP U4c: resolve the aircraft by identity, not name.
+                    // Verify it still belongs to the viewer faction before scrapping.
+                    GeoVehicle aircraft = info?.Vehicle;
+                    if (aircraft == null || context?.ViewerFaction?.Vehicles?.Contains(aircraft) != true) return;
 
                     var utils = geoscapeModules.GeoscapeScreenUtilsModule;
                     string msg = utils.DismissVehiclePrompt.Localize(null);
@@ -277,7 +303,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                     }
 
                     GameUtl.GetMessageBox().ShowSimplePrompt(
-                        string.Format(msg, info.Name),
+                        // AAP U4c: format the confirmation with the live aircraft Name.
+                        string.Format(msg, aircraft.Name),
                         MessageBoxIcon.Warning,
                         MessageBoxButtons.YesNo,
                         result =>
@@ -286,6 +313,18 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                             {
                                 try
                                 {
+                                    // AAP U4b: move installed equipment to Phoenix
+                                    // storage BEFORE destroying the vehicle. The old
+                                    // code called aircraft.Destroy() directly, which
+                                    // destroys installed equipment instead of returning
+                                    // it to the player's AircraftItemStorage.
+                                    List<GeoVehicleEquipment> installed = aircraft.Equipments
+                                        .Where(item => item != null).ToList();
+                                    foreach (GeoVehicleEquipment item in installed)
+                                    {
+                                        context.Level.PhoenixFaction.AircraftItemStorage.AddItem(item);
+                                        aircraft.RemoveEquipment(item);
+                                    }
                                     aircraft.Travelling = true;
                                     aircraft.Destroy();
 
@@ -298,8 +337,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                                             new object[] { context.ViewerFaction, true });
                                     }
 
-                                    // Remove from containers list and refresh UI
-                                    characterContainers.RemoveAt(info.Index);
+                                    // AAP U4c: remove by identity, not by mutable index.
+                                    characterContainers.Remove(aircraft);
                                     geoRosterModule.Init(context, characterContainers,
                                         null, preferFilterMode,
                                         RosterSelectionMode.SingleSelect);

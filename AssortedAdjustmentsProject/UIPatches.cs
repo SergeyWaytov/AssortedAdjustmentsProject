@@ -3,7 +3,6 @@ using Base.Defs;
 using Base.UI;
 using Base.UI.MessageBox;
 using HarmonyLib;
-using I2.Loc;
 using PhoenixPoint.Common.Core;
 using PhoenixPoint.Common.Entities.Items;
 using PhoenixPoint.Geoscape.Entities;
@@ -35,13 +34,18 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     {
         public static bool Prepare()
         {
+            // AAP G1 (live-guard variant): re-check the toggle on every patch
+            // installation instead of latching the value at first Prepare().
             return ModMain.Cfg?.DisableRightClickMove != false;
         }
 
         [HarmonyTargetMethod]
         public static MethodBase TargetMethod()
         {
-            Type type = AccessTools.TypeByName("UIStateCharacterSelected");
+            // AAP B4: full type name (PhoenixPoint.Tactical.View.ViewStates.UIStateCharacterSelected)
+            // resolves unambiguously; the short name collides with the Geoscape-side
+            // UIStateCharacterSelected type in some builds.
+            Type type = AccessTools.TypeByName("PhoenixPoint.Tactical.View.ViewStates.UIStateCharacterSelected");
             return AccessTools.Method(type, "OnRightClickMove");
         }
 
@@ -50,13 +54,15 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         {
             try
             {
-                var traverse = Traverse.Create(__instance);
-                var contextualMenuModule = traverse.Field("_contextualMenuModule").GetValue<object>();
+                // AAP U8: _contextualMenuModule is a PROPERTY (not a field), and
+                // CloseContextualMenu takes one Boolean. The old Field() +
+                // no-arg Method() calls silently no-op'd, so the menu never
+                // closed when right-click suppressed a move order.
+                Traverse state = Traverse.Create(__instance);
+                object contextualMenuModule = state.Property("_contextualMenuModule").GetValue<object>();
                 if (contextualMenuModule != null)
                 {
-                    bool isVisible = Traverse.Create(contextualMenuModule).Property("IsContextualMenuVisible").GetValue<bool>();
-                    if (isVisible)
-                        traverse.Method("CloseContextualMenu").GetValue();
+                    state.Method("CloseContextualMenu", new object[] { true }).GetValue();
                 }
                 return false; // Skip original move
             }
@@ -64,92 +70,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         }
     }
 
-    // ===== EXTENDED AGENDA TRACKER ETA =====
-    
-    internal static class ExtendedAgendaTrackerETA
-    {
-        private static bool GetTravelTime(GeoVehicle v, out float t, GeoSite target = null)
-        {
-            t = 0f;
-            // ---- ADDED NULL CHECKS ----
-            if (v == null || v.Navigation == null) return false;
-            if (target == null && v.FinalDestination == null) return false;
-
-            var cur = v.CurrentSite?.WorldPosition ?? v.WorldPosition;
-            var dest = target == null ? v.FinalDestination.WorldPosition : target.WorldPosition;
-            var path = v.Navigation.FindPath(cur, dest, out bool ok);
-            if (!ok || path.Count < 2) return false;
-            float d = 0;
-            for (int i = 0; i < path.Count - 1; i++) d += GeoMap.Distance(path[i].Pos.WorldPosition, path[i + 1].Pos.WorldPosition).Value;
-            t = d / v.Stats.Speed.Value;
-            return true;
-        }
-
-        private static float GetExplorationTime(GeoVehicle v, float h)
-        {
-            // ---- ADDED NULL CHECK ----
-            if (v == null) return h;
-
-            try
-            {
-                var u = typeof(GeoVehicle).GetField("_explorationUpdateable", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(v);
-                if (u == null) return h;
-                var e = (NextUpdate)u.GetType().GetProperty("NextUpdate")?.GetValue(u);
-                return (float)-(v.Timing.Now - e.NextTime).TimeSpan.TotalHours;
-            }
-            catch { return h; }
-        }
-
-        private static string AppendTime(float h)
-        {
-            var tu = TimeUnit.FromHours(h);
-            // ---- FIX: Use ScriptableObject.CreateInstance instead of new ----
-            var tf = ScriptableObject.CreateInstance<TimeRemainingFormatterDef>();
-            tf.DaysText = new LocalizedTextBind("{0}d", true);
-            tf.HoursText = new LocalizedTextBind("{0}h", true);
-            return "   ~ " + UIUtil.FormatTimeRemaining(tu, tf);
-        }
-
-        [HarmonyPatch]
-        public static class UIModuleSiteContextualMenu_SetMenuItems_Patch
-        {
-            [HarmonyTargetMethod]
-            public static MethodBase TargetMethod() => AccessTools.Method("PhoenixPoint.Geoscape.View.ViewModules.UIModuleSiteContextualMenu:SetMenuItems");
-
-            [HarmonyPostfix]
-            public static void Postfix(object __instance, GeoSite site, List<SiteContextualMenuItem> ____menuItems)
-            {
-                try
-                {
-                    foreach (var item in ____menuItems)
-                    {
-                        GeoVehicle v = item.Ability?.GeoActor as GeoVehicle;
-                        if (item.Ability is MoveVehicleAbility move && move.GeoActor is GeoVehicle mv && mv.CurrentSite != site)
-                        {
-                            // ---- ADDED NULL CHECKS ----
-                            if (mv == null || mv.Navigation == null)
-                                continue;
-
-                            if (GetTravelTime(mv, out float eta, site))
-                                item.ItemText.text += AppendTime(eta);
-                        }
-                        else if (item.Ability is ExploreSiteAbility)
-                        {
-                            // ---- ADDED NULL CHECKS ----
-                            if (v == null || v.Navigation == null)
-                                continue;
-
-                            float h = GetExplorationTime(v, (float)site.ExplorationTime.TimeSpan.TotalHours);
-                            item.ItemText.text += AppendTime(h);
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    Debug.LogError($"[AAP] SetMenuItems ETA failed: {e.Message}");
-                }
-            }
-        }
-    }
-    
+    // AAP U7: ExtendedAgendaTrackerETA and the nested
+    // UIModuleSiteContextualMenu_SetMenuItems_Patch class have been DELETEd.
+    // They duplicated vanilla's site-contextual-menu ETA computation (the
+    // game already shows travel/exploration ETA in those menus) and were
+    // a maintenance trap. The B6 raw-literal fallbacks at the old lines
+    // 108-109 ({0}d / {0}h) lived inside the deleted class and are gone too.
 }

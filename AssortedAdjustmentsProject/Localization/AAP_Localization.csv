@@ -45,3 +45,45 @@ The stranger was never seen again, but his gift now hums quietly in the blood of
 Лечение навсегда поднимает психическую устойчивость солдата до почти сверхчеловеческого уровня, образуя невидимый щит, который пробить могут лишь самые сокрушительные ментальные атаки. Непредвиденным побочным эффектом стало то, что оперативники, уже одарённые внешними психическими способностями, отмечают: их попытки контроля разума стали жутко могущественнее — будто пришельцы внезапно видят собственные трюки, обращённые против них же с лёгкой привычностью.
 
 Незнакомца больше не видели, но его дар теперь тихо гудит в крови каждого оперативника Феникса — безмолвное спасибо вестнику, знавшему больше, чем когда-либо говорил."
+AAP_CFG_DisableRightClickMove,Text,,Disable right-click move,Отключить перемещение правой кнопкой
+AAP_CFG_DisableRightClickMove_DESC,Text,,"Right-click no longer issues move orders; it closes open menus instead. Turn off if it feels awkward with vehicles.","Правая кнопка больше не отдаёт приказов на перемещение; вместо этого она закрывает открытые меню. Отключите, если это неудобно при управлении техникой."
+AAP_CFG_EnableSmartEvacuation,Text,,Smart squad evacuation,Умная эвакуация отряда
+AAP_CFG_EnableSmartEvacuation_DESC,Text,,"When a squad member moves into an exit zone, ask to evacuate the whole squad (only possible when everyone can evacuate).","Когда боец попадает в зону выхода, предлагается эвакуировать весь отряд (только если все могут эвакуироваться)."
+AAP_CFG_EnablePlentifulDrops,Text,,Plentiful item drops,Обильный выпадающий лут
+AAP_CFG_EnablePlentifulDrops_DESC,Text,,"Reduced item destruction chance and extra loot drops from fallen enemies.","Снижен шанс разрушения предметов и увеличены выпадения лута с поверженных врагов."
+AAP_CFG_PersonalAbilitiesCount,Text,,Personal abilities count,Количество личных способностей
+AAP_CFG_PersonalAbilitiesCount_DESC,Text,,"Personal ability slots per soldier (vanilla 3, max 7).","Число слотов личных способностей на солдата (ванильное 3, максимум 7)."
+AAP_CFG_FrenzySpeedCoefficient,Text,,Frenzy speed coefficient,Коэффициент скорости (Ярость)
+AAP_CFG_FrenzySpeedCoefficient_DESC,Text,,"Frenzy speed multiplier. 1.5 = toned-down +50% (vanilla value). The old 1.75 allowed cross-map rushes.","Множитель скорости для способности «Ярость». 1.5 = смягчённые +50% (ванильное значение). Прежнее 1.75 позволяло рывки через всю карту."
+AAP_CFG_VehicleAmmoMultiplier,Text,,Vehicle weapon ammo multiplier,Множитель боезапаса оружия техники
+AAP_CFG_VehicleAmmoMultiplier_DESC,Text,,"Ammo charges multiplier for ground vehicle turret weapons (Armadillo, Scarab, Aspida, Mutog, Kaos Buggy). 1.5 = +50%.","Множитель зарядов боезапаса для башенного оружия наземной техники (Армадилло, Скараб, Аспида, Мутог, багги Каоса). 1.5 = +50%."
+AAP_CFG_DeploymentCap,Text,,Deployment cap,Лимит развёртывания
+AAP_CFG_DeploymentCap_DESC,Text,,"Maximum deployable units per mission (vanilla 8; 16 fits two full Thunderbirds).","Максимальное число бойцов на миссию (ванильное 8; 16 вмещает два полных «Громовержца»)."
+AAP_CFG_EnableFesteringSkiesTweaks,Text,,Festering Skies tweaks,Твики Festering Skies
+AAP_CFG_EnableFesteringSkiesTweaks_DESC,Text,,"Slow down the Behemoth and Pandoran geoscape flyers so aircraft and bases have more reaction time.","Замедляет Бегемота и пандоранские летающие объекты на геоскапе, чтобы у авиации и баз было больше времени на реакцию."
+AAP_CFG_BehemothSpeed,Text,,FS: Behemoth speed (kph),FS: скорость Бегемота (км/ч)
+AAP_CFG_BehemothSpeed_DESC,Text,,"Geoscape speed of the Behemoth. Vanilla 60; 6 matches the Slowdown Behemoth reference mod. Only used with Festering Skies tweaks enabled.","Скорость Бегемота на геоскапе. Ванильное 60; 6 соответствует эталонному моду Slowdown Behemoth. Используется только при включённых твиках Festering Skies."
+AAP_CFG_AlienFlyerSpeedPercent,Text,,FS: Alien flyer speed percent,FS: скорость пандоранских ЛА (%)
+AAP_CFG_AlienFlyerSpeedPercent_DESC,Text,,"Geoscape speed of Pandoran flyers as percent of vanilla (vanilla small 250 / medium 350 / large 300). 10 = Slowdown Alien Flyers reference mod values.","Скорость пандоранских летающих объектов на геоскапе в процентах от ванильного (ванильные: малый 250 / средний 350 / большой 300). 10 = значения из эталонного мода Slowdown Alien Flyers."
+AAP_CFG_EnableCorruptedHorizonsTweaks,Text,,Corrupted Horizons tweaks,Твики Corrupted Horizons
+AAP_CFG_EnableCorruptedHorizonsTweaks_DESC,Text,,"Nerf the Acheron: Call Reinforcements gets a real WP cost, and its cloud abilities are limited to one use per turn.","Ослабляет Ахерона: «Призыв подкрепления» получает настоящую стоимость В, а его облачные способности ограничены одним применением за ход."
+AAP_CFG_AcheronReinforceWPCost,Text,,CH: Acheron reinforcement WP cost,CH: стоимость призыва подкрепления Ахерона (В)
+AAP_CFG_AcheronReinforceWPCost_DESC,Text,,"Willpower cost of the Acheron's Call Reinforcements (vanilla 0 = free spam). 20 matches the Nerf Acheron mod.","Стоимость воли для «Призыва подкрепления» Ахерона (ванильное 0 = бесплатный спам). 20 соответствует моду Nerf Acheron."
+AAP_CFG_EnableLimitedWar,Text,,Limited War: enable,Limited War: включить
+AAP_CFG_EnableLimitedWar_DESC,Text,,"Curbs AI-vs-AI warring: zoned haven destruction, attack limits, alertness on losses, defense multipliers. Phoenix itself is never limited. Restart game after changing.","Ограничивает войну ИИ против ИИ: зональное разрушение убежищ, лимиты атак, тревожность при потерях, множители обороны. Сам Феникс никогда не ограничивается. Перезапустите игру после изменения."
+AAP_CFG_LWZonedFactionAttacks,Text,,LW: faction attacks damage zones only,LW: атаки фракций разрушают только зоны
+AAP_CFG_LWZonedFactionAttacks_DESC,Text,,"A lost haven defense against another faction destroys only the attacked zone instead of the whole haven.","При провале обороны убежища от другой фракции разрушается только атакованная зона, а не всё убежище целиком."
+AAP_CFG_LWZonedPandoranAttacks,Text,,LW: Pandoran attacks damage zones only,LW: пандоранские атаки разрушают только зоны
+AAP_CFG_LWZonedPandoranAttacks_DESC,Text,,"Same as above but for Pandoran attacks (off by default - keeps alien threat lethal).","То же, что и выше, но для пандоранских атак (по умолчанию выключено — чужая угроза остаётся смертельной)."
+AAP_CFG_LWAttacksRaiseAlertness,Text,,LW: attacks raise alertness,LW: атаки повышают тревожность
+AAP_CFG_LWAttacksRaiseAlertness_DESC,Text,,"When a faction loses a haven (or a zone), all its havens raise alertness.","Когда фракция теряет убежище (или зону), тревожность во всех её убежищах повышается."
+AAP_CFG_LWStopOneSidedWar,Text,,LW: stop one-sided wars,LW: запрет односторонних войн
+AAP_CFG_LWStopOneSidedWar_DESC,Text,,"The same faction cannot attack twice in a row - wars alternate.","Одна и та же фракция не может атаковать дважды подряд — войны чередуются."
+AAP_CFG_LWGlobalAttackLimit,Text,,LW: global attack limit (-1 off),LW: глобальный лимит атак (-1 выкл.)
+AAP_CFG_LWGlobalAttackLimit_DESC,Text,,"Maximum simultaneous faction-vs-faction haven attacks on the map. Default 3, -1 disables.","Максимум одновременных атак фракция-против-фракции на карте. По умолчанию 3, -1 отключает."
+AAP_CFG_LWFactionAttackLimit,Text,,LW: per-faction attack limit (-1 off),LW: лимит атак на фракцию (-1 выкл.)
+AAP_CFG_LWFactionAttackLimit_DESC,Text,,"Maximum simultaneous attacks by one faction. Default 2, -1 disables.","Максимум одновременных атак одной фракции. По умолчанию 2, -1 отключает."
+AAP_CFG_LWSiegeProtectionLimit,Text,,LW: siege protection limit (-1 off),LW: лимит осадной защиты (-1 выкл.)
+AAP_CFG_LWSiegeProtectionLimit_DESC,Text,,"A faction defending this many of its own havens against Pandorans starts no new wars. Default 1, -1 disables.","Фракция, обороняющая столько своих убежищ от пандоранов, не начинает новых войн. По умолчанию 1, -1 отключает."
+AAP_CFG_LWDisablePandoranBaseAttacks,Text,,LW: disable Pandoran attacks on Phoenix bases,LW: отключить атаки пандоранов на базы Феникса
+AAP_CFG_LWDisablePandoranBaseAttacks_DESC,Text,,"Pandorans never assault Phoenix bases (off by default).","Пандораны никогда не штурмуют базы Феникса (по умолчанию выключено)."

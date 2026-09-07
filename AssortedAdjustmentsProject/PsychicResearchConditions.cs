@@ -55,16 +55,23 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             {
                 // Re-assert after save load: the game can rebuild its language
                 // sources (dropping our imported terms), so re-import the CSV
-                // (now in Replace mode, so values refresh every load) and
-                // re-swap the lore binds. The legacy lore-stripping pass was
-                // removed in the Major Cleanup - it was stripping the mod's
-                // own lore out of the mod's own AAP_*_FULL terms.
+                // and re-swap the lore binds.
+                // AAP L3 fix: call LocalizeAll(true) after ImportLocalization()
+                // so instantiated labels refresh immediately -- without this,
+                // per-level re-import populates the dictionary but does not
+                // update already-rendered UI text until the next localize sweep.
                 ModMain.Self?.ImportLocalization();
+                I2.Loc.LocalizationManager.LocalizeAll(true);
                 ResearchLoreBinds.Apply();
 
                 var phoenix = __instance?.PhoenixFaction;
                 if (phoenix?.Research == null) return;
 
+                // AAP P5 fix: make flag assignments UNCONDITIONAL. The old code
+                // only set flags when the query was true, so a completed campaign's
+                // true value survived into a new campaign where the research was
+                // NOT completed, leaking the psychic buff into saves that should
+                // not have it.
                 bool mindDone = phoenix.Research.GetResearchesBy(r =>
                     r.State == ResearchState.Completed &&
                     r.ResearchDef != null &&
@@ -75,16 +82,12 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                     r.ResearchDef != null &&
                     r.ResearchDef.name == PsychicResearchConditions.PsychicAttackResearch).Any();
 
-                if (mindDone && !PsychicBuffManager.MindfraggerResearchCompleted)
-                {
-                    PsychicBuffManager.MindfraggerResearchCompleted = true;
-                    Debug.Log("[AAP] Psychic buff: Mindfragger research detected as already completed (retroactive activation).");
-                }
-                if (psychicDone && !PsychicBuffManager.PsychicInfluencesCompleted)
-                {
-                    PsychicBuffManager.PsychicInfluencesCompleted = true;
-                    Debug.Log("[AAP] Psychic buff: Psychic Attack research detected as already completed (retroactive activation).");
-                }
+                if (mindDone != PsychicBuffManager.MindfraggerResearchCompleted)
+                    Debug.Log($"[AAP] Psychic buff: Mindfragger research completed = {mindDone}.");
+                if (psychicDone != PsychicBuffManager.PsychicInfluencesCompleted)
+                    Debug.Log($"[AAP] Psychic buff: Psychic Attack research completed = {psychicDone}.");
+                PsychicBuffManager.MindfraggerResearchCompleted = mindDone;
+                PsychicBuffManager.PsychicInfluencesCompleted = psychicDone;
             }
             catch (Exception e)
             {

@@ -22,8 +22,12 @@
 		<DefineConstants>DEBUG;TRACE</DefineConstants>
 	</PropertyGroup>
 
+	<!-- AAP B2: Release config no longer ships a ~280KB PDB with
+             build-machine paths. DebugSymbols=false + DebugType=none
+             strips all symbols from the distributable. -->
 	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
-		<DebugType>pdbonly</DebugType>
+		<DebugSymbols>false</DebugSymbols>
+		<DebugType>none</DebugType>
 		<Optimize>true</Optimize>
 		<DefineConstants>TRACE</DefineConstants>
 	</PropertyGroup>
@@ -96,7 +100,27 @@
 		</Reference>
 	</ItemGroup>
 
-	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+	<!-- AAP post-build guard (opt-out, default ON): the original
+             PostBuild target ran an UNCONDITIONAL RMDIR /S /Q + XCOPY
+             against TestMod on every build. During the 2-agent audit this
+             wiped a third-party mod sitting in TestMod. The audit's B2
+             recommendation was to make deploy-on-build opt-in; but that
+             broke the developer's normal rebuild-to-TestMod auto-deploy
+             loop. Inverted to opt-out (default ON) to restore the dev loop
+             while preserving the audit's safety valve:
+
+               - Default (property unset/empty): deploy runs (matches original).
+               - Set DeployToPhoenixPointTestMod=false to SKIP deploy
+                 (for clean ship builds or shared build machines).
+               - The external Directory.Build.targets file from the release
+                 bundle (drop at repo root beside the .sln) overrides EVERY
+                 PostBuild with a no-op, regardless of this property.
+                 Use that as the nuclear off-switch for audit-mode builds.
+
+             AfterTargets=PostBuildEvent matches the original .csproj (NOT
+             Build) so the target fires at the same point in the build
+             pipeline the original used. -->
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(DeployToPhoenixPointTestMod)' != 'false'">
 		<!-- Purge unwanted reference DLLs from the output so they never ship -->
 		<Delete Files="$(OutputPath)0Harmony.dll" />
 		<Delete Files="$(OutputPath)0Harmony.xml" />

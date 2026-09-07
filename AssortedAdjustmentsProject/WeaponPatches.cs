@@ -147,12 +147,13 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             if (boneSpike != null)
             {
                 boneSpike.SpreadDegrees = 1.5f;
+                // Q2: zero means unlimited (intentional). Engine convention: 0 = no charge cap.
                 boneSpike.ChargesMax = 0;
                 ModifyDamageKeyword(boneSpike, "Piercing_DamageKeywordDataDef", 25f);
                 ModifyDamageKeyword(boneSpike, "Poison_DamageKeywordDataDef", 50f);
-                Log("Venom Torso bone spike patched.");
+                Log("Venom Torso bone spike patched (ChargesMax=0 = unlimited, intentional).");
             }
-            
+
 
             // ===== Slamstrike Shotgun =====
             var slamstrike = cache.GetDef<WeaponDef>("FS_SlamstrikeShotgun_WeaponDef");
@@ -175,24 +176,24 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 ModifyDamageKeyword(lightSniper, "Damage_DamageKeywordDataDef", 110f);
                 Log("Light Sniper Rifle patched: Damage 110, Range 60.");
             }
-            // ===== Tyr‑1 Autocannon (FS_Autocannon_WeaponDef) =====
+            // ===== Tyr-1 Autocannon (FS_Autocannon_WeaponDef) =====
             var tyr1 = cache.GetDef<WeaponDef>("FS_Autocannon_WeaponDef");
             if (tyr1 != null)
             {
                 tyr1.APToUsePerc = 50;                      // 2 AP
                 Traverse.Create(tyr1).Field("_effectiveRange").SetValue(25);
                 ModifyDamageKeyword(tyr1, "Shredding_DamageKeywordDataDef", 10f);
-                
+
                 ModifyDamageKeyword(tyr1, "Damage_DamageKeywordDataDef", 60f);
-                
+
                 var payload = tyr1.DamagePayload;
                 if (payload != null)
                 {
                     payload.ObjectMultiplier = 2f;
                     payload.StopOnFirstHit = false;
-                    Log($"Tyr‑1 payload: Multiplier={payload.ObjectMultiplier}, Stop={payload.StopOnFirstHit}");
+                    Log($"Tyr-1 payload: Multiplier={payload.ObjectMultiplier}, Stop={payload.StopOnFirstHit}");
                 }
-                Log("Tyr‑1 Autocannon patched.");
+                Log("Tyr-1 Autocannon patched.");
             }
             // ===== Vidar Grenade Launcher =====
             var vidar = cache.GetDef<WeaponDef>("FS_AssaultGrenadeLauncher_WeaponDef");

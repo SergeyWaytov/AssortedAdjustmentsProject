@@ -16,11 +16,26 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     /// <summary>
     /// Prevents Return Fire when the shooter steps out of full cover.
     /// Based on the implementation from Mad's Assorted Adjustments.
+    /// AAP T4a/T4b fix: state is keyed to the actual shooter (not a
+    /// boolean tracker that any step-out sets), and the gameplay writer
+    /// is the real-fire prefix only. The two hover hooks compute local
+    /// visual prediction but do NOT assign stepOutShooter/stepOutReason.
+    /// AAP Q13-A: the AbilitySelected postfix param is now
+    /// List&lt;TacticalActorBase&gt; to match the game's field type
+    /// (Mono tolerates the old TacticalActor param; this is future-safe).
+    /// AAP B6: the prediction sentences below are diagnostic-only
+    /// (wrapped in Debug.Log calls, never displayed to the player). Per
+    /// the audit's own B6 note ("If the prediction sentences are
+    /// diagnostic-only, keep them as English debug logs"), these are
+    /// intentionally left as English debug strings -- not localized.
     /// </summary>
     [HarmonyPatch]
     public static class ReturnFireCoverCancelPatch
     {
-        private static KeyValuePair<bool, string> stepOutTracker = new KeyValuePair<bool, string>(false, "");
+        // T4b: state keyed to the actual shooter. Only the real-fire prefix
+        // assigns these; hover hooks compute local prediction but do not write.
+        private static TacticalActor stepOutShooter;
+        private static string stepOutReason = string.Empty;
 
         [HarmonyPatch(typeof(TacticalLevelController), "FireWeaponAtTargetCrt")]
         [HarmonyPrefix]
@@ -30,17 +45,13 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             {
                 if (abilityTarget.AttackType != AttackType.Regular) return;
                 TacticalActor shooter = weapon.TacticalActor;
-                bool shooterStepsOut = Vector3.SqrMagnitude(shooter.Pos - abilityTarget.ShootFromPos) > 0.01f;
-                if (shooterStepsOut)
-                {
-                    string msg = $"{shooter.DisplayName} stepped out to shoot with {weapon.DisplayName}.";
-                    stepOutTracker = new KeyValuePair<bool, string>(true, msg);
-                    Debug.Log($"[AAP] {msg}");
-                }
-                else
-                {
-                    stepOutTracker = new KeyValuePair<bool, string>(false, "");
-                }
+                bool steppedOut = Vector3.SqrMagnitude(shooter.Pos - abilityTarget.ShootFromPos) > 0.01f;
+                stepOutShooter = steppedOut ? shooter : null;
+                stepOutReason = steppedOut
+                    ? $"{shooter.DisplayName} stepped out to shoot with {weapon.DisplayName}."
+                    : string.Empty;
+                if (steppedOut)
+                    Debug.Log($"[AAP] {stepOutReason}");
             }
             catch (Exception e)
             {
@@ -61,15 +72,13 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 if (abilityTarget.AttackType == AttackType.Regular)
                 {
                     bool shooterWillStepOut = Vector3.SqrMagnitude(shooter.Pos - abilityTarget.ShootFromPos) > 0.01f;
+                    // T4b: hover prediction computes the LOCAL string for
+                    // debug only; it MUST NOT assign stepOutShooter/stepOutReason.
+                    // The gameplay writer is the FireWeaponAtTargetCrt prefix above.
                     if (shooterWillStepOut)
                     {
                         string msg = $"{shooter.DisplayName} will step out to shoot with {shootAbility.Weapon.DisplayName}.";
-                        stepOutTracker = new KeyValuePair<bool, string>(true, msg);
                         Debug.Log($"[AAP] Predicted: {msg}");
-                    }
-                    else
-                    {
-                        stepOutTracker = new KeyValuePair<bool, string>(false, "");
                     }
                 }
             }
@@ -79,9 +88,11 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
         }
 
+        // Q13-A: ____targetActors is now List<TacticalActorBase> (matches
+        // the game's field type; future-safe against stricter mono metadata).
         [HarmonyPatch(typeof(UIStateAbilitySelected), "CalculateReturnFirePredictions")]
         [HarmonyPrefix]
-        public static void CalculateReturnFirePredictions_Ability_Prefix(UIStateAbilitySelected __instance, List<TacticalActor> ____targetActors, TacticalAbility ____selectedAbility)
+        public static void CalculateReturnFirePredictions_Ability_Prefix(UIStateAbilitySelected __instance, List<TacticalActorBase> ____targetActors, TacticalAbility ____selectedAbility)
         {
             try
             {
@@ -92,15 +103,11 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 if (abilityTarget.AttackType == AttackType.Regular)
                 {
                     bool performerWillStepOut = Vector3.SqrMagnitude(shooter.Pos - abilityTarget.ShootFromPos) > 0.01f;
+                    // T4b: diagnostic-only; does NOT assign stepOutShooter/stepOutReason.
                     if (performerWillStepOut)
                     {
                         string msg = $"{shooter.DisplayName} will step out to use {____selectedAbility.TacticalAbilityDef?.ViewElementDef?.DisplayName1?.Localize()} ({____selectedAbility.TargetEquipmentName}).";
-                        stepOutTracker = new KeyValuePair<bool, string>(true, msg);
                         Debug.Log($"[AAP] Predicted: {msg}");
-                    }
-                    else
-                    {
-                        stepOutTracker = new KeyValuePair<bool, string>(false, "");
                     }
                 }
             }
@@ -116,17 +123,15 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         {
             try
             {
-                if (__result == null || __result.Count == 0) return;
-                if (!stepOutTracker.Key) return;
-                for (int i = __result.Count - 1; i >= 0; i--)
-                {
-                    TacticalActor target = __result[i].TacticalActor;
-                    if (target == shooter)
-                    {
-                        Debug.Log($"[AAP] Return Fire prevented for {target.DisplayName} because {stepOutTracker.Value}");
-                        __result.RemoveAt(i);
-                    }
-                }
+                // T4a: the old loop checked `target == shooter` against a list
+                // built from actors Enemy-to-shooter -- none could ever equal.
+                // Clear the result outright when the real-fire prefix set the
+                // shooter and this call's shooter matches.
+                if (__result == null || stepOutShooter != shooter) return;
+                Debug.Log($"[AAP] Return Fire prevented ({__result.Count}) because {stepOutReason}");
+                __result.Clear();
+                stepOutShooter = null;
+                stepOutReason = string.Empty;
             }
             catch (Exception e)
             {

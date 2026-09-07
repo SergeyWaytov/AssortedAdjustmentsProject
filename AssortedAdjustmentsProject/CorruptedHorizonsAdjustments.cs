@@ -14,11 +14,15 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     ///     0 WP but limited to one use per turn each.
     ///   - Leap: 0 WP (keeps mobility, removes WP competition with clouds).
     /// All lookups are by def name and silently skip when the DLC is absent.
+    /// AAP G2-A (restart-only): toggling EnableCorruptedHorizonsTweaks does NOT
+    /// live-reverse the def mutations. Apply() runs once at OnModEnabled;
+    /// OnConfigChanged no longer re-calls Apply(). Restart to apply changes.
     /// </summary>
     public static class CorruptedHorizonsAdjustments
     {
         public static void Apply(DefCache cache)
         {
+            // AAP G2-A: early return is the restart-only contract.
             var cfg = ModMain.Cfg;
             if (cfg == null || !cfg.EnableCorruptedHorizonsTweaks) return;
 

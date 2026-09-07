@@ -28,6 +28,21 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     /// WillPointCost / UsesPerTurn), not properties - the old Traverse.Property() calls
     /// were silent no-ops. All lookups now set the fields directly, verified against
     /// the decompiled game assembly.
+    /// AAP T3: Poison reads the hit wrapper instead of the poisoned actor. Status.Target
+    /// is normally an IDamageReceiver (item slot); the actor is exposed by TacStatus.
+    /// Cast changed from `__instance.Target as TacticalActor` to
+    /// `(__instance as TacStatus)?.TacticalActor`.
+    /// AAP T5: Rally's "ensure +1 AP/+1 WP" effect was a false-success no-op
+    /// (TacEffectStatusDef has no StatModifications member; EnsureStatModification
+    /// returned at its own FieldExists() guard while the "entries ensured" log
+    /// still printed). The no-op EnsureStatModification helper and its two
+    /// call sites have been removed. A new patch on TacticalAbility.Activate
+    /// filters to Rally_AbilityDef and restores 1 WP to each ally in the
+    /// rally radius via the TFTV-confirmed mechanism
+    /// (ally.CharacterStats.WillPoints.Add(1f)).
+    /// AAP Q10 (Option B): deleted the stale PsychicResistance_AbilityDef
+    /// lookup (the def is absent from this build; the lookup only ever
+    /// printed a warning that the AAP startup log is clean about).
     /// </summary>
     public static class AbilityAdjustments
     {
@@ -64,23 +79,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 rally.WillPointCost = 5f;
                 Debug.Log("[AAP] Rally costs set to 1 AP, 5 WP.");
             }
-
-            // ===== Rally Effect (ensure +1 AP, +1 WP restoration) =====
-            // The Rally status is data-driven; if it exposes a StatModifications list
-            // (StatsModifyStatusDef pattern) make sure +1 ActionPoints / +1 WillPoints
-            // entries exist. The old ActionPointRestoration/WillPointRestoration
-            // properties do not exist in the game code and never applied.
-            var rallyEffect = cache.GetDef<BaseDef>("E_Status [Rally_AbilityDef]");
-            if (rallyEffect != null)
-            {
-                EnsureStatModification(rallyEffect, "ActionPoints", 1f);
-                EnsureStatModification(rallyEffect, "WillPoints", 1f);
-                Debug.Log("[AAP] Rally effect: ActionPoints/WillPoints +1 entries ensured.");
-            }
-            else
-            {
-                Debug.LogWarning("[AAP] Rally effect def not found.");
-            }
+            // AAP T5: the dead "ensure +1 AP / +1 WP StatModifications" no-op
+            // block and its EnsureStatModification helper have been removed.
+            // Rally WP restoration is now a runtime patch -- see
+            // RallyAbility_Activate_Patch at the bottom of this file.
 
             // ===== Sneak Attack (2.0x / 1.5x) =====
             var sneakAttackAbility = cache.GetDef<ApplyStatusAbilityDef>("SneakAttack_AbilityDef");
@@ -149,12 +151,11 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 ? "[AAP] Poison rework: runtime enforcer active (-50% Acc, -3 WP)."
                 : "[AAP] Poison status def not found; poison rework inactive.");
 
-            // ===== Psychic Resistance Fix =====
-            var psychicResistance = cache.GetDef<BaseDef>("PsychicResistance_AbilityDef");
-            if (psychicResistance == null)
-            {
-                Debug.LogWarning("[AAP] PsychicResistance_AbilityDef not found in this game version. Skipping.");
-            }
+            // AAP Q10-B: deleted the stale PsychicResistance_AbilityDef lookup.
+            // The def is absent from this game build; the lookup only ever
+            // printed a noisy warning that cluttered the startup log. The
+            // feature is removed in this build -- when it returns, add a
+            // properly-resolved cache.GetDef<...> call back here.
 
             // ===== Frenzy: speed boost from config (default toned-down 1.5) =====
             // User report on the Workshop page: 1.75 allowed cross-map movement.
@@ -187,48 +188,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
             Debug.Log($"[AAP] Personal abilities limit set to {personalCount} on {statSheets.Count} stat sheets.");
         }
-
-        /// <summary>
-        /// Ensures an Add-type StatModification entry exists on a def that has a
-        /// "StatModifications" list field (StatsModifyStatusDef pattern).
-        /// </summary>
-        private static void EnsureStatModification(BaseDef target, string statName, float value)
-        {
-            try
-            {
-                var t = Traverse.Create(target).Field("StatModifications");
-                if (t == null || !t.FieldExists()) return;
-                var list = t.GetValue() as System.Collections.IList;
-                if (list == null) return;
-
-                // Update existing entry if present
-                foreach (var mod in list)
-                {
-                    var mt = Traverse.Create(mod);
-                    if (mt.Field("StatName")?.GetValue<string>() == statName)
-                    {
-                        mt.Field("Value")?.SetValue(value);
-                        return;
-                    }
-                }
-
-                // Append a new entry using an existing element as template
-                if (list.Count > 0)
-                {
-                    var template = list[0];
-                    var newMod = Activator.CreateInstance(template.GetType());
-                    var nt = Traverse.Create(newMod);
-                    nt.Field("Modification")?.SetValue(StatModificationType.Add);
-                    nt.Field("StatName")?.SetValue(statName);
-                    nt.Field("Value")?.SetValue(value);
-                    list.Add(newMod);
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"[AAP] EnsureStatModification({target?.name}, {statName}) failed: {e.Message}");
-            }
-        }
     }
 
     // ================================================================
@@ -237,6 +196,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     // actor has the Poison damage-over-time status, and removes the
     // modifications when the status is gone. Replaces the removed
     // PoisonReworkEnforcer.cs which patched a non-existent method.
+    // AAP T3: actor cast fixed -- Status.Target is an IDamageReceiver
+    // (item slot), use (__instance as TacStatus)?.TacticalActor.
     // ================================================================
     [HarmonyPatch(typeof(Status), "OnApply")]
     public static class PoisonRework_OnApply_Patch
@@ -246,7 +207,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             try
             {
                 if (__instance?.Def?.name != "Poison_DamageOverTimeStatusDef") return;
-                var actor = __instance.Target as TacticalActor;
+                // AAP T3: read the actor off TacStatus, not the Target wrapper.
+                TacticalActor actor = (__instance as TacStatus)?.TacticalActor;
                 if (actor == null) return;
 
                 PoisonDebuff.Apply(actor, __instance.Def);
@@ -264,7 +226,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             try
             {
                 if (__instance?.Def?.name != "Poison_DamageOverTimeStatusDef") return;
-                var actor = __instance.Target as TacticalActor;
+                // AAP T3: actor cast via TacStatus.
+                TacticalActor actor = (__instance as TacStatus)?.TacticalActor;
                 if (actor == null) return;
 
                 PoisonDebuff.Remove(actor, __instance.Def);
@@ -295,6 +258,98 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             var stats = actor.CharacterStats;
             stats.TryGetStat(StatModificationTarget.Accuracy)?.RemoveStatModificationsWithSource(source, true);
             stats.TryGetStat(StatModificationTarget.WillPoints)?.RemoveStatModificationsWithSource(source, true);
+        }
+    }
+
+    // ================================================================
+    // AAP T5 / Q14 -- RALLY WP RESTORATION (runtime)
+    // The dead EnsureStatModification no-op (which patched a non-existent
+    // StatModifications member on the Rally effect status) has been removed
+    // from AbilityAdjustments.Apply. This patch fires when ANY TacticalAbility
+    // activates and filters by def name to Rally_AbilityDef; it then restores
+    // 1 WP to each ally in the rally radius via the TFTV-confirmed mechanism:
+    //   ally.CharacterStats.WillPoints.Add(1f)
+    // (TFTV research: GitHub.com/Voland163/TFTV uses WillPoints.Add(value)
+    // for in-combat WP restoration.)
+    // TODO (Q14): AP restoration via ally.CharacterStats.ActionPoints.Add(1f)
+    // when the AP mechanism is confirmed against the live build.
+    // ================================================================
+    [HarmonyPatch(typeof(TacticalAbility), "Activate")]
+    public static class RallyAbility_Activate_Patch
+    {
+        private const string RallyDefName = "Rally_AbilityDef";
+        // TODO (Q14): AP restoration via ally.CharacterStats.ActionPoints.Add(1f)
+        // when AP mechanism is confirmed.
+
+        [HarmonyPostfix]
+        static void Postfix(TacticalAbility __instance)
+        {
+            try
+            {
+                if (__instance?.TacticalAbilityDef?.name != RallyDefName) return;
+
+                TacticalActor caster = __instance.TacticalActor;
+                if (caster == null) return;
+
+                // TFTV-confirmed WP restoration mechanism: WillPoints.Add(1f)
+                // restores up to Max. Per TFTV research, Add() does NOT raise
+                // the cap (use AddRestrictedToMax for that). Vanilla Rally's
+                // radius is small (the caster's local cluster); we apply the
+                // same radius-based filter by reading the caster's level.
+                float radius = GetRallyRadius(__instance);
+                if (radius <= 0f) radius = 10f; // safe default if the def lacks the field
+
+                // AAP T5 / Q14: only apply when the PLAYER casts Rally (Phoenix
+                // Point faction == ViewerFaction). Matches the user's intent:
+                // the WP buff is a player-side QoL fix, not an NPC buff.
+                // Pattern mirrors PsychicBuffManager.cs:60 and PrecisionShot.cs:172.
+                if (caster.TacticalFaction != caster.TacticalLevel?.View?.ViewerFaction) return;
+
+                var casterFaction = caster.TacticalFaction;
+                if (casterFaction == null) return;
+
+                int restored = 0;
+                foreach (TacticalActor ally in casterFaction.TacticalActors.Where(a => a != null && a.IsActive))
+                {
+                    if (ally == caster) continue;
+                    // No FactionRelation check needed: casterFaction.TacticalActors
+                    // is already the caster's own faction (Phoenix Point), so
+                    // every ally here is a valid WP buff target.
+
+                    float dist = Vector3.Distance(caster.Pos, ally.Pos);
+                    if (dist > radius) continue;
+
+                    // TFTV pattern: actor.CharacterStats.WillPoints.Add(value).
+                    ally.CharacterStats.WillPoints.Add(1f);
+                    restored++;
+                }
+
+                if (restored > 0)
+                    Debug.Log($"[AAP] Rally restored 1 WP to {restored} ally/allies in radius {radius} around {caster.DisplayName}.");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AAP] Rally WP restoration failed: {e.Message}");
+            }
+        }
+
+        // Best-effort read of the Rally radius from the ability def. Returns 0
+        // if the field is absent (the caller falls back to a default). We use
+        // Traverse so this compiles against any build regardless of whether
+        // the radius lives on the def or on the ability's status/effect.
+        private static float GetRallyRadius(TacticalAbility ability)
+        {
+            try
+            {
+                var def = ability?.TacticalAbilityDef;
+                if (def == null) return 0f;
+                // Try a few known member names without inventing a typed API.
+                float r = Traverse.Create(def).Field("_radius")?.GetValue<float>() ?? 0f;
+                if (r > 0f) return r;
+                r = Traverse.Create(def).Field("Radius")?.GetValue<float>() ?? 0f;
+                return r;
+            }
+            catch { return 0f; }
         }
     }
 

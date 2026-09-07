@@ -10,6 +10,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     {
         private readonly DefRepository _repo;
         private readonly Dictionary<string, List<string>> _defNameToGuidCache;
+        // AAP Q11-A: warn once per duplicated def name (first-wins preserves behavior).
+        private readonly HashSet<string> _warnedDuplicateNames = new HashSet<string>();
 
         // Static instance for global access (used by TutorialPatches)
         public static DefCache Instance { get; private set; }
@@ -37,6 +39,13 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
                 if (!_defNameToGuidCache.TryGetValue(name, out List<string> guids) || guids == null || guids.Count == 0)
                     return null;
+
+                // AAP Q11-A: first-wins preserves behavior, but warn once per name
+                // when duplicates exist so silent ambiguity becomes visible.
+                if (guids.Count > 1 && _warnedDuplicateNames.Add(name))
+                {
+                    Debug.LogWarning($"[AAP DefCache] Multiple defs found for '{name}' ({guids.Count} GUIDs: {string.Join(", ", guids)}). Returning first match.");
+                }
 
                 foreach (string guid in guids)
                 {

@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace SergeyWaytov.AssortedAdjustmentsProject
 {
-    
+
 
     // ===== DISABLE NOTHING FOUND =====
     internal static class DisableNothingFound
@@ -44,7 +44,9 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 try
                 {
                     if (eventID != NothingFoundID) return;
-                    List<string> events = __instance.EmptyExplorationEventIds;
+                    // AAP G4: copy the engine's live list before mutating, so
+                    // RemoveAll below does not destroy the live fallback list.
+                    List<string> events = new List<string>(__instance.EmptyExplorationEventIds);
                     if (events.Count <= 1)
                     {
                         if (visitingFaction == null) return;

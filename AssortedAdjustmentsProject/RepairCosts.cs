@@ -15,6 +15,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     /// decompiled GeoCharacter.GetRepairCost.
     /// Intent from the Workshop feature list: mutation repairs free, bionic
     /// repairs at normal price.
+    /// AAP G10-A: removed the dead mutation branch (the live GeoscapeSettingsDef
+    /// ItemsSettings table in this build contains Bionic_TagDef only; no
+    /// mutation row exists for the "Mutat" substring to match). The bionic
+    /// baseline is left at its vanilla multiplier.
     /// </summary>
     public static class RepairCosts
     {
@@ -27,28 +31,25 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 return;
             }
 
-            int changed = 0;
-            foreach (GeoscapeSettingsDef.ItemTypeSettings typeSettings in settings.ItemsSettings)
+            // AAP G10-A: keep the bionic baseline only. The mutation branch was
+            // dead (no mutation row in the live table for any "Mutat" substring
+            // to match). Honest contract: do not advertise mutation free-repair
+            // until the augmentation/body-part seam is identified and the row
+            // actually exists.
+            // G10 verify in-game: do mutated body parts incur repair cost?
+            int bionicsSeen = 0;
+            foreach (GeoscapeSettingsDef.ItemTypeSettings itemType in settings.ItemsSettings)
             {
-                if (typeSettings?.Tag == null) continue;
-                string tagName = typeSettings.Tag.name;
-
-                // Mutations repair for free. Bionics are left at their vanilla
-                // multiplier (0.5) - the 1.0 log line in the first 1.1 build
-                // actually doubled bionic repair costs against the design
-                // philosophy of never adding costs to the player.
-                if (tagName.Contains("Mutat") && typeSettings.RepairCost != 0f)
+                if (itemType?.Tag?.name == "Bionic_TagDef")
                 {
-                    float old = typeSettings.RepairCost;
-                    typeSettings.RepairCost = 0f;
-                    changed++;
-                    Debug.Log($"[AAP] Repair cost for '{tagName}': {old} -> 0 (mutations repair for free).");
+                    bionicsSeen++;
+                    Debug.Log($"[AAP] Bionic repair multiplier left at {itemType.RepairCost} (vanilla baseline preserved).");
                 }
             }
 
-            Debug.Log(changed > 0
-                ? $"[AAP] RepairCosts applied to {changed} item types."
-                : "[AAP] RepairCosts: no bionic/mutation item types found (nothing to change).");
+            Debug.Log(bionicsSeen > 0
+                ? $"[AAP] RepairCosts: {bionicsSeen} bionic item type(s) verified (multiplier left at vanilla)."
+                : "[AAP] RepairCosts: no bionic item types found (nothing to change).");
         }
     }
 }

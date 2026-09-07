@@ -1,5 +1,6 @@
 using Base.UI;
 using HarmonyLib;
+using I2.Loc;
 using PhoenixPoint.Geoscape.Entities;
 using PhoenixPoint.Geoscape.Entities.Missions;
 using PhoenixPoint.Geoscape.Entities.Sites;
@@ -32,6 +33,21 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     ///    attacker Pandoran x1.2, defender Anu x1.2, defender Synedrion x1.2.
     ///  - Optionally disable Pandoran attacks on Phoenix bases entirely.
     /// Phoenix itself is never limited - only AI-vs-AI warring is curbed.
+    /// AAP G5-A: 0 = strictest (NormalizeLimit maps 0 -> 1; -1 stays as the
+    /// off-switch). Descriptions in AAPConfig.cs already advertise this.
+    /// AAP G6: both DestroySite patches check defense.Site == __instance
+    /// identity, so a stray DestroySite call (e.g. world generation cleanup)
+    /// doesn't run the zoned-destruction path against the wrong site.
+    /// AAP G7: GetSiteVehicleDestinationWeight uses Prefix+Finalizer instead
+    /// of Prefix+Postfix so the weight multiplier is restored even on throw.
+    /// AAP G8: Map_SiteMissionStarted postfix uses typed GeoHavenDefenseMission
+    /// access (no Store.DefenseMission null check needed).
+    /// AAP G9-A: LastAttacker persists across save/load via the EventSystem
+    /// variable AAP_LW_LastAttackerFactionIndex (1-based; 0 = no last attacker).
+    /// AAP G11: char.ToUpperInvariant (culture-stable) and site.SiteName.Localize()
+    /// for already-localized strings.
+    /// AAP B5: GameDifficulty field + assignment + log portion deleted (was
+    /// written and never read).
     /// </summary>
     internal static class LimitedWar
     {
@@ -41,9 +57,14 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         internal static bool RaiseAlertness => ModMain.Cfg?.LWAttacksRaiseAlertness == true;
         internal static bool StopOneSidedWar => ModMain.Cfg?.LWStopOneSidedWar == true;
         internal static bool DisablePandoranBaseAttacks => ModMain.Cfg?.LWDisablePandoranBaseAttacks == true;
-        internal static int GlobalAttackLimit => ModMain.Cfg?.LWGlobalAttackLimit ?? 3;
-        internal static int FactionAttackLimit => ModMain.Cfg?.LWFactionAttackLimit ?? 2;
-        internal static int SiegeProtectionLimit => ModMain.Cfg?.LWSiegeProtectionLimit ?? 1;
+
+        // AAP G5-A: 0 is the strictest positive limit (NormalizeLimit maps
+        // 0 -> 1). -1 is the off-switch (preserved as -1). See AAPConfig
+        // tooltips for the player-facing contract.
+        private static int NormalizeLimit(int value) => value == 0 ? 1 : value;
+        internal static int GlobalAttackLimit => NormalizeLimit(ModMain.Cfg?.LWGlobalAttackLimit ?? 3);
+        internal static int FactionAttackLimit => NormalizeLimit(ModMain.Cfg?.LWFactionAttackLimit ?? 2);
+        internal static int SiegeProtectionLimit => NormalizeLimit(ModMain.Cfg?.LWSiegeProtectionLimit ?? 1);
         internal static bool ZoningActive => ZonedFactionAttacks || ZonedPandoranAttacks;
         internal static bool AttackLimitsActive => StopOneSidedWar || GlobalAttackLimit >= 0 || FactionAttackLimit >= 0 || SiegeProtectionLimit >= 0;
 
@@ -53,6 +74,12 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         internal static readonly float DefMultAttackerPandora = 1.2f;
         internal static readonly float DefMultDefenderAnu = 1.2f;
         internal static readonly float DefMultDefenderSynedrion = 1.2f;
+
+        // AAP G9-A: persistent attacker memory across save/load. The variable
+        // is 1-based (0 = "no last attacker"); factions are stored as
+        // (IndexOf(faction) + 1) so it stays valid even if the Factions list
+        // is reordered on a later save.
+        private const string LastAttackerVariable = "AAP_LW_LastAttackerFactionIndex";
 
         public static void Apply(DefCache cache)
         {
@@ -73,7 +100,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         // ── Shared state ─────────────────────────────────────────────
         internal static class Store
         {
-            internal static int GameDifficulty = 1; // Veteran fallback
+            // AAP B5: GameDifficulty field deleted (was written, never read).
             internal static IGeoFactionMissionParticipant LastAttacker;
             internal static GeoHavenDefenseMission DefenseMission;
         }
@@ -155,10 +182,12 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
         }
 
+        // AAP G11: char.ToUpperInvariant (culture-stable); the original
+        // char.ToUpper was culture-sensitive (Turkish locale would mangle I).
         internal static string ToTitleCase(string s)
         {
             if (string.IsNullOrEmpty(s)) return s;
-            return char.ToUpper(s[0]) + s.Substring(1);
+            return char.ToUpperInvariant(s[0]) + s.Substring(1);
         }
 
         // ── Store mission for other patches ──────────────────────────
@@ -181,12 +210,17 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             {
                 try
                 {
-                    if (Store.DefenseMission == null) return true;
+                    // AAP G6: identity guard. The original `if (Store.DefenseMission == null) return true;`
+                    // fired the zoned-destruction path on ANY DestroySite call (e.g. world cleanup)
+                    // once a defense mission had been recorded. New guard ties the path to the
+                    // specific site under attack.
+                    GeoHavenDefenseMission defense = Store.DefenseMission;
+                    if (defense == null || defense.Site != __instance) return true;
 
-                    IGeoFactionMissionParticipant attacker = Store.DefenseMission.GetEnemyFaction();
+                    IGeoFactionMissionParticipant attacker = defense.GetEnemyFaction();
                     if (Resolver.CanDestroyHavens(attacker)) return true;
 
-                    GeoHavenZone zone = Store.DefenseMission.AttackedZone;
+                    GeoHavenZone zone = defense.AttackedZone;
                     zone.AddDamage(zone.Health.IntValue);
                     zone.AddProduction(0);
                     GeoHaven haven = zone.Haven;
@@ -209,25 +243,35 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         }
 
         // ── Zoned attacks: expand haven name with zone name in log ───
+        // AAP G8: typed access via the live `mission` parameter (cast to
+        // GeoHavenDefenseMission). The original postfix rejected the live
+        // mission unless Store.DefenseMission was non-null, but that store
+        // is only populated in the resolution patch -- so the log entry was
+        // never renamed. New body uses `mission` directly.
         [HarmonyPatch(typeof(GeoscapeLog), "Map_SiteMissionStarted")]
         public static class GeoscapeLog_Map_SiteMissionStarted_Patch
         {
             public static bool Prepare() => Enabled && ZoningActive;
 
-            public static void Postfix(GeoSite site, GeoMission mission, List<GeoscapeLogEntry> ____entries)
+            [HarmonyPostfix]
+            public static void Postfix(GeoSite site, GeoMission mission,
+                List<GeoscapeLogEntry> ____entries, GeoFaction ____faction)
             {
                 try
                 {
-                    if (!(mission is GeoHavenDefenseMission) || Store.DefenseMission == null) return;
-
-                    IGeoFactionMissionParticipant attacker = Store.DefenseMission.GetEnemyFaction();
+                    if (!(mission is GeoHavenDefenseMission defense)) return;
+                    if (!site.GetInspected(____faction)) return;
+                    IGeoFactionMissionParticipant attacker = defense.GetEnemyFaction();
                     if (Resolver.CanDestroyHavens(attacker)) return;
-
-                    LocalizedTextBind zoneName = Store.DefenseMission.AttackedZone?.Def?.ViewElementDef?.DisplayName1;
-                    if (zoneName == null || ____entries == null || ____entries.Count < 1) return;
-
+                    LocalizedTextBind zoneName = defense.AttackedZone?.Def?.ViewElementDef?.DisplayName1;
+                    if (zoneName == null || ____entries == null || ____entries.Count == 0) return;
                     GeoscapeLogEntry entry = ____entries[____entries.Count - 1];
-                    entry.Parameters[0] = new LocalizedTextBind($"{site.Name} ({ToTitleCase(zoneName.Localize())})", true);
+                    if (entry.Parameters == null || entry.Parameters.Length == 0) return;
+                    // AAP G11: site.SiteName.Localize() (already-localized),
+                    // not site.Name (frozen-in-English fallback).
+                    string siteName = site.SiteName.Localize();
+                    entry.Parameters[0] = new LocalizedTextBind(
+                        $"{siteName} ({ToTitleCase(zoneName.Localize())})", true);
                     Log("Invasion log entry renamed to zone invasion.");
                 }
                 catch (Exception e) { LogError(e); }
@@ -260,7 +304,8 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                         Text = attackersWon ? ____messagesDef.HavenDestroyedMessage : ____messagesDef.HavenRepelledAttackMessage,
                         Parameters = new LocalizedTextBind[]
                         {
-                            new LocalizedTextBind($"{site.Name} ({ToTitleCase(zoneName.Localize())})", true),
+                            // AAP G11: same site.SiteName.Localize() composition here.
+                            new LocalizedTextBind($"{site.SiteName.Localize()} ({ToTitleCase(zoneName.Localize())})", true),
                             attacker.ParticipantName
                         }
                     };
@@ -282,7 +327,11 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             {
                 try
                 {
-                    GeoHaven haven = Store.DefenseMission?.Haven;
+                    // AAP G6: identity guard for the alertness postfix too.
+                    GeoHavenDefenseMission defense = Store.DefenseMission;
+                    if (defense == null || defense.Site != __instance) return;
+
+                    GeoHaven haven = defense.Haven;
                     GeoFaction owner = haven?.Site?.Owner;
                     if (haven == null || owner == null || Resolver.IsAlienOrPhoenix(owner)) return;
 
@@ -297,7 +346,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
         }
 
-        // ── Attack limits: track difficulty + reset last attacker ────
+        // ── Attack limits: restore last attacker on level start (G9-A) ───
         [HarmonyPatch(typeof(GeoLevelController), "OnLevelStart")]
         public static class GeoLevelController_OnLevelStart_Patch
         {
@@ -307,9 +356,14 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             {
                 try
                 {
-                    Store.GameDifficulty = __instance.DynamicDifficultySystem.DifficultyLevels.ToList().IndexOf(__instance.CurrentDifficultyLevel);
-                    Store.LastAttacker = null;
-                    Log($"Last attacker reset. Difficulty level index: {Store.GameDifficulty}.");
+                    // AAP G9-A: restore LastAttacker from the EventSystem
+                    // variable so "no two attacks in a row" survives save/load.
+                    // Variable is 1-based; 0 means no last attacker recorded.
+                    int stored = __instance.EventSystem.GetVariable(LastAttackerVariable, 0);
+                    Store.LastAttacker = stored > 0 && stored <= __instance.Factions.Count
+                        ? __instance.Factions[stored - 1] : null;
+                    // AAP B5: removed the GameDifficulty assignment + log portion.
+                    Log($"Loaded: last attacker = {Store.LastAttacker?.GetPPName() ?? "(none)"} (EventSystem var {LastAttackerVariable}={stored}).");
                 }
                 catch (Exception e) { LogError(e); }
             }
@@ -330,7 +384,11 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                         Log($"{__instance.Name.Localize()} attack on {site.Name} prevented.");
                         return false;
                     }
+                    // AAP G9-A: persist LastAttacker across save/load via
+                    // EventSystem so "no two attacks in a row" survives a reload.
                     Store.LastAttacker = vehicle.Owner;
+                    int index = ____level.Factions.IndexOf(vehicle.Owner);
+                    ____level.EventSystem.SetVariable(LastAttackerVariable, index >= 0 ? index + 1 : 0);
                     return true;
                 }
                 catch (Exception e) { LogError(e); return true; }
@@ -338,6 +396,9 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         }
 
         // ── Attack limits: discourage war navigation ─────────────────
+        // AAP G7: Prefix + Finalizer (replaces Prefix + Postfix). The
+        // postfix would skip on throw, leaving the multiplier at -2f and
+        // permanently discouraging navigation. Finalizer always restores.
         [HarmonyPatch(typeof(VehicleFactionController), "GetSiteVehicleDestinationWeight")]
         public static class VehicleFactionController_GetSiteVehicleDestinationWeight_Patch
         {
@@ -345,6 +406,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
             public static void Prefix(VehicleFactionController __instance, ref float? __state)
             {
+                __state = null;
                 try
                 {
                     if (Resolver.ShouldCancelAttack(__instance.Vehicle?.GeoLevel, __instance.Vehicle?.Owner))
@@ -352,20 +414,16 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                         __state = __instance.ControllerDef.FactionInWarWeightMultiplier;
                         __instance.ControllerDef.FactionInWarWeightMultiplier = -2f;
                     }
-                    else
-                    {
-                        __state = null;
-                    }
                 }
                 catch (Exception e) { LogError(e); }
             }
 
-            public static void Postfix(VehicleFactionController __instance, float? __state)
+            [HarmonyFinalizer]
+            public static Exception Finalizer(VehicleFactionController __instance, float? __state, Exception __exception)
             {
                 if (__state.HasValue)
-                {
                     __instance.ControllerDef.FactionInWarWeightMultiplier = __state.Value;
-                }
+                return __exception;
             }
         }
 

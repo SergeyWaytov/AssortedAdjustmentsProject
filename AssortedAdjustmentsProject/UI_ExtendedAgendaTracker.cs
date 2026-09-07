@@ -51,7 +51,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         }
 
         // Cache the tracker reference
-        
+
         [HarmonyPatch]
         public static class CacheTrackerPatch
         {
@@ -64,7 +64,11 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 try
                 {
                     if (__instance == null) return;
-                    if (factionTracker == null)
+                    // AAP U5: Unity's destroyed-object check is `!factionTracker`
+                    // (the C# reference is non-null but the underlying native
+                    // object is gone). Re-acquire via FindObjectOfType when the
+                    // tracker reference has gone stale.
+                    if (factionTracker == null || !factionTracker)
                     {
                         var prop = AccessTools.Property(__instance.GetType(), "_factionTracker");
                         if (prop != null)
@@ -77,7 +81,38 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 catch (Exception e) { Debug.LogError($"[AAP] CacheTracker failed: {e.Message}"); }
             }
         }
-        
+
+        // AAP U5: rehydrate excavation trackers on InitialSetup so they
+        // survive native rebuilds and campaign changes. This is in addition
+        // to the OnExcavationStarted patch (which fires when an excavation
+        // begins); this rehydration catches the case where the agenda UI
+        // was rebuilt mid-campaign.
+        [HarmonyPatch(typeof(UIModuleFactionAgendaTracker), "InitialSetup")]
+        public static class AddExcavationTrackersPatch
+        {
+            [HarmonyPostfix]
+            public static void Postfix(UIModuleFactionAgendaTracker __instance,
+                GeoFaction ____faction, GeoscapeViewContext ____context)
+            {
+                try
+                {
+                    factionTracker = __instance;
+                    InitReflection();
+                    if (!(____faction is GeoPhoenixFaction phoenix) || ____context?.Level == null) return;
+                    foreach (SiteExcavationState excavation in
+                             phoenix.ExcavatingSites ?? Enumerable.Empty<SiteExcavationState>())
+                    {
+                        if (excavation?.Site == null ||
+                            excavation.ExcavationEndDate <= ____context.Level.Timing.Now) continue;
+                        AddOrUpdate(excavation.Site,
+                            $"{ActionExcavating} {excavation.Site.LocalizedSiteName}",
+                            "ArcheologyLab_PhoenixFacilityDef");
+                    }
+                }
+                catch (Exception e) { Debug.LogError($"[AAP] Excavation tracker rehydration failed: {e}"); }
+            }
+        }
+
         // Excavation start tracker
         [HarmonyPatch]
         public static class OnExcavationStartedPatch
@@ -182,7 +217,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 }
             }
         }
-        
+
         // Repair trackers on init
         [HarmonyPatch]
         public static class AddRepairTrackersPatch
@@ -207,7 +242,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                         if (b?.Layout?.Facilities == null) continue;
                         foreach (var f in b.Layout.Facilities)
                         {
-                            // Null‑checks for every element in the chain
+                            // Null-checks for every element in the chain
                             if (f == null || !f.IsRepairing) continue;
                             if (f.GetTimeLeftToUpdate() == TimeUnit.Zero) continue;
                             if (f.Def?.ViewElementDef?.DisplayName1 == null) continue;
@@ -254,9 +289,15 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                     }
                 }
 
-                var viewDef = GameUtl.GameComponent<DefRepository>()?.DefRepositoryDef?.AllDefs?.OfType<ViewElementDef>()
-                    .FirstOrDefault(d => d.name.Contains(iconDefName));
-                if (viewDef == null) return;
+                // AAP B3: exact-name lookup via DefCache (was O(n) substring
+                // scan against AllDefs on every AddOrUpdate call -- now hits
+                // the cache and warns once per missing icon name).
+                ViewElementDef viewDef = ModMain.DefCache?.GetDef<ViewElementDef>(iconDefName);
+                if (viewDef == null)
+                {
+                    Debug.LogWarning($"[AAP] Agenda icon def not found: {iconDefName}");
+                    return;
+                }
 
                 var free = (UIFactionDataTrackerElement)getFreeElementMethod?.Invoke(factionTracker, null);
                 if (free == null) return;
@@ -323,7 +364,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         }
 
         // Replace the timer update logic – patched with null guards
-        
+
         [HarmonyPatch]
         public static class UpdateDataPrefixPatch
         {
@@ -401,7 +442,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 return true; // fallback to original
             }
         }
-        
+
         // Click-to-focus patch
         [HarmonyPatch]
         public static class AddClickToFocusPatch
@@ -422,7 +463,15 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                     if (go == null) return;
 
                     var et = go.GetComponent<EventTrigger>() ?? go.AddComponent<EventTrigger>();
-                    et.triggers.Clear();
+                    // AAP U6: clear ONLY PointerClick entries (the ones this
+                    // patch owns). The old et.triggers.Clear() also removed
+                    // the hover entries installed by AddHoverEffectPatch on
+                    // Init, so the hover effect stopped working after the
+                    // first UpdateData call.
+                    EventTrigger.Entry[] aapClicks = et.triggers
+                        .Where(entry => entry.eventID == EventTriggerType.PointerClick).ToArray();
+                    foreach (EventTrigger.Entry entry in aapClicks) et.triggers.Remove(entry);
+
                     var click = new EventTrigger.Entry { eventID = EventTriggerType.PointerClick };
                     click.callback.AddListener((_) =>
                     {
@@ -475,6 +524,12 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
                     var et = go.GetComponent<EventTrigger>() ?? go.AddComponent<EventTrigger>();
                     var orig = __instance.TrackedName?.color ?? Color.white;
+                    // AAP U6: guard against existing entries of the same
+                    // eventID so re-Init does not stack duplicate hover
+                    // handlers (which would call the callback N times).
+                    if (et.triggers.Any(entry => entry.eventID == EventTriggerType.PointerEnter)) return;
+                    if (et.triggers.Any(entry => entry.eventID == EventTriggerType.PointerExit)) return;
+
                     var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
                     enter.callback.AddListener((_) =>
                     {

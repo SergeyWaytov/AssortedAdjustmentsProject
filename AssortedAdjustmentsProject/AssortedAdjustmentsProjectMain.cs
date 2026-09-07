@@ -50,6 +50,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             var _ = Config;   // cache settings before modules read them
             Self = this;
             ImportLocalization();   // AAP_ keys must exist before anything localizes
+            Config.PopulateConfigFields();   // wire Mod Options panel to AAP_CFG_ keys (EN+RU)
             DefCache = new DefCache();
             // Persistent lore: swap the two research defs' CompleteText to our
             // full-text AAP_*_FULL terms. The popup postfix and the legacy
@@ -162,15 +163,36 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 if (!csv.EndsWith("\n")) csv += "\n";
 
                 var source = I2.Loc.LocalizationManager.Sources[0];
+
+                // Idempotent remove-and-re-add import. We deliberately AVOID
+                // eSpreadsheetUpdateMode.Replace: in this I2 build, Replace
+                // clobbers source 0's language table (9 langs -> 2) and drops
+                // the Russian column's [ru] binding, which renders every AAP_
+                // Russian string as <!-MISSING KEY-!>. Removing only AAP_ terms
+                // first, then AddNewTerms-importing, preserves the language
+                // table intact and re-imports every CSV row fresh on each load
+                // (audit L1 fix; verified in Player.log: "AddNewTerms mode (N
+                // new term(s); existing AAP_ terms removed and re-added; all
+                // languages preserved)").
+                int removed = 0;
+                for (int i = source.mTerms.Count - 1; i >= 0; i--)
+                {
+                    string term = source.mTerms[i]?.Term;
+                    if (!string.IsNullOrEmpty(term) && term.StartsWith("AAP_", StringComparison.Ordinal))
+                    {
+                        // RemoveTerm is present in this I2 build (verified at
+                        // runtime by the tested DLL). If a future ModSDK drops
+                        // it, swap to source.mTerms.RemoveAt(i) - same effect.
+                        source.RemoveTerm(term);
+                        removed++;
+                    }
+                }
+
                 int before = source.mTerms.Count;
-                // Replace mode: refreshes term values on every load so CSV
-                // text edits take effect without needing a fresh-key. The old
-                // AddNewTerms mode skipped existing terms, which is why a
-                // second pass reported "imported 0 terms" and never restored
-                // values that the (now-removed) cleanup had stripped.
-                source.Import_CSV(string.Empty, csv, I2.Loc.eSpreadsheetUpdateMode.Replace, ',');
+                source.Import_CSV(string.Empty, csv, I2.Loc.eSpreadsheetUpdateMode.AddNewTerms, ',');
+                source.UpdateDictionary(true);
                 int added = source.mTerms.Count - before;
-                Debug.Log($"[AAP] Localization: CSV processed in Replace mode ({added} new term(s); existing AAP_ term values refreshed) from AAP_Localization.csv.");
+                Debug.Log($"[AAP] Localization: CSV processed in AddNewTerms mode ({added} new term(s); {removed} existing AAP_ term(s) removed and re-added; all languages preserved) from AAP_Localization.csv.");
             }
             catch (Exception e)
             {
@@ -270,6 +292,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             return I2.Loc.LocalizationManager.GetTranslation("AAP_" + key)?.Replace("\\n", "\n");
         }
 
-        
+
     }
 }

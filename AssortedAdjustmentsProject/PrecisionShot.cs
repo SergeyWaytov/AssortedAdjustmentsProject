@@ -162,9 +162,14 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         }
 
         // ===================== HARMONY PATCH =====================
+        // AAP T9: this postfix must run AFTER TutorialJacobFixPatch (which
+        // is HarmonyPriority High) so the Jacob class-tag swap is visible
+        // before this patch checks for the Sniper tag. Priority.Low.
         [HarmonyPatch(typeof(TacticalActor), "ProcessInstanceData")]
         internal static class PrecisionShot_ApplyToPhoenixSnipers
         {
+            [HarmonyPriority(Priority.Low)]
+            [HarmonyPostfix]
             static void Postfix(TacticalActor __instance)
             {
                 try

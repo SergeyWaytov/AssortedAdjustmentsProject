@@ -15,5 +15,6 @@ using System.Runtime.InteropServices;
 // Generate a NEW GUID for this mod (replace with a freshly generated GUID)
 [assembly: Guid("7740175C-4D0A-43F1-AF66-AF453D5337D0")]
 
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+// AAP B1: bump to 1.1.2.0 to match meta.json (user request: version 1.1.2 release).
+[assembly: AssemblyVersion("1.1.2.0")]
+[assembly: AssemblyFileVersion("1.1.2.0")]
