@@ -25,6 +25,31 @@ using UnityEngine.UI;
 
 namespace SergeyWaytov.AssortedAdjustmentsProject
 {
+    // ===== MOD OPTIONS LOCALIZATION RE-ASSERT (menu) =====
+    // AAP 1.2.2 fix: the boot-time import can run before the game finishes
+    // populating source 0's language table (Sep-23 build), so the Mod Options
+    // panel can render English even in RU locale until a level is loaded. The
+    // level-start patch (PsychicRetroactiveGates_Patch) already re-asserts on
+    // save load; this covers the main-menu path - the moment the mod
+    // management screen opens, before its panel is built.
+    [HarmonyPatch(typeof(PhoenixPoint.Home.View.ViewStates.UIStateModManagment), "EnterState")]
+    public static class ModOptionsLocalizationReassert_Patch
+    {
+        static void Postfix()
+        {
+            try
+            {
+                if (ModMain.Self == null) return;
+                ModMain.Self.ImportLocalization();
+                I2.Loc.LocalizationManager.LocalizeAll(true);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("[AAP] Mod Options localization re-assert failed: " + e);
+            }
+        }
+    }
+
     // ===== DISABLE RIGHT-CLICK MOVE (Dynamic Type Resolution) =====
     // Configurable since AAP 1.1: some players found the change awkward with
     // vehicles (Workshop feedback) - toggle "Disable right-click move" in the
