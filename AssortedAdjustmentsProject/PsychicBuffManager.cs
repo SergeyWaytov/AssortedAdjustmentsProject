@@ -6,7 +6,6 @@ using PhoenixPoint.Common.Core;
 using PhoenixPoint.Common.Entities;
 using PhoenixPoint.Common.Entities.GameTags;
 using PhoenixPoint.Common.Entities.GameTagsSharedData;
-using PhoenixPoint.Common.Entities.GameTagsTypes;
 using PhoenixPoint.Geoscape.Levels;
 using PhoenixPoint.Tactical;
 using PhoenixPoint.Tactical.Entities;
@@ -22,6 +21,17 @@ using UnityEngine;
 
 namespace SergeyWaytov.AssortedAdjustmentsProject
 {
+    // AAP PHASE 3 NOTE (whole-file replacement): the changes to this
+    // file versus the Phase 2b.3 build are (1) the poison-source guard
+    // inside PsychicWillpointLoss_Defense_V3 (skip def-sourced negative WP
+    // modifications -- see the guard comment in that method) and (2) the
+    // PHASE 3.1 BUILD FIX: the two 'is ClassTagDef' checks no longer
+    // reference the ClassTagDef TYPE (it did not resolve in the user's VS
+    // build) -- they now use the name-based IsClassTagType helper below,
+    // which matches ClassTagDef and any subclass at runtime with zero
+    // compile-time dependency. The poison system itself now lives in the
+    // NEW file PoisonRework.cs (its WP penalty no longer passes through
+    // ApplyStatModification at all).
     public static class PsychicBuffManager
     {
         public static GameTagDef MindfraggerBonusTag;
@@ -57,6 +67,23 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         // isn't ready at Init time). Rejects ClassTagDef subclasses at any
         // level (the audit's P2 invariant). Logs which source worked so
         // the next Player.log confirms the fix.
+        //
+        // AAP PHASE 3.1: ClassTagDef is not resolvable as a type from this
+        // file's imports (user's VS build: CS0246 'ClassTagDef' could not
+        // be found). The two checks below now use IsClassTagType -- a
+        // runtime type-NAME walk of the inheritance chain. Semantically
+        // identical to 'tag is ClassTagDef' (matches the def and every
+        // subclass), zero compile-time dependency on the game type.
+        private static bool IsClassTagType(GameTagDef tag)
+        {
+            if (tag == null) return false;
+            for (Type t = tag.GetType(); t != null && t != typeof(object); t = t.BaseType)
+            {
+                if (t.Name == "ClassTagDef") return true;
+            }
+            return false;
+        }
+
         private static void CreateTags()
         {
             GameTagDef baseTag = null;
@@ -66,7 +93,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             try
             {
                 baseTag = SharedData.GetSharedDataFromGame()?.SharedGameTags?.ManufacturableTag;
-                if (baseTag != null && baseTag is ClassTagDef)
+                if (IsClassTagType(baseTag))
                 {
                     Debug.LogWarning("[AAP] Psychic marker: SharedGameTags.ManufacturableTag is a ClassTagDef subclass (unexpected); falling back to DefCache candidates.");
                     baseTag = null;
@@ -93,7 +120,7 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 foreach (var name in candidates)
                 {
                     var candidate = ModMain.DefCache.GetDef<GameTagDef>(name);
-                    if (candidate != null && !(candidate is ClassTagDef))
+                    if (candidate != null && !IsClassTagType(candidate))
                     {
                         baseTag = candidate;
                         usedSource = name + " (DefCache fallback)";
@@ -532,6 +559,23 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
                 TacticalActor caster = null;
                 object source = statMod.Source;
+
+                // AAP Phase 3 (Poison<->Psychic orthogonalization): negative
+                // WP modifications sourced from a StatusDef are runtime
+                // debuffs (the legacy poison shape), never psychic attacks.
+                // Without this guard V3 fell through to the actor's own
+                // status scan below and could misattribute the debuff to a
+                // COEXISTING PsychicScream/MindCrush status on the same
+                // actor -- halving or even nulling an unrelated debuff.
+                // (The Phase 3 PoisonRework no longer routes its WP penalty
+                // through stat-modifications at all; this guard also covers
+                // old saves and any other def-sourced debuff.)
+                if (source is StatusDef)
+                {
+                    Seeker.LogOnce("V3:skip-def-source:" + source.GetType().Name,
+                        $"PsychicWillpointLoss_Defense_V3: skipped def-sourced WP modification from {Seeker.DescribeSource(source)} (runtime debuff, not a psychic attack).");
+                    return;
+                }
 
                 if (source is TacStatus status)
                     caster = status.Source as TacticalActor;

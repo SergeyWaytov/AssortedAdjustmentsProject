@@ -28,10 +28,16 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     /// WillPointCost / UsesPerTurn), not properties - the old Traverse.Property() calls
     /// were silent no-ops. All lookups now set the fields directly, verified against
     /// the decompiled game assembly.
-    /// AAP T3: Poison reads the hit wrapper instead of the poisoned actor. Status.Target
-    /// is normally an IDamageReceiver (item slot); the actor is exposed by TacStatus.
-    /// Cast changed from `__instance.Target as TacticalActor` to
-    /// `(__instance as TacStatus)?.TacticalActor`.
+    /// AAP Phase 3: the Poison rework RUNTIME (Status.OnApply/OnUnapply
+    /// patches, the debuff, and its ledger) has MOVED to the new file
+    /// PoisonRework.cs. The old implementation applied its -3 WP as a
+    /// WillPoints StatModification routed through
+    /// StatusStat.ApplyStatModification -- the exact seam the psychic WP
+    /// defense (PsychicWillpointLoss_Defense_V3) monitors, which let a
+    /// coexisting PsychicScream/MindCrush status on the same actor
+    /// misattribute and halve/block the poison debuff. PoisonRework now
+    /// deducts WP directly (WillPoints.Add) and never touches that seam.
+    /// Nothing else in this file changed versus the Phase 2b.3 build.
     /// AAP T5: Rally's "ensure +1 AP/+1 WP" effect was a false-success no-op
     /// (TacEffectStatusDef has no StatModifications member; EnsureStatModification
     /// returned at its own FieldExists() guard while the "entries ensured" log
@@ -143,13 +149,13 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
 
             // ===== Poison Rework (-50% Acc, -3 WP) =====
-            // Poison_DamageOverTimeStatusDef is a DamageOverTimeStatusDef: it has no
-            // StatModifications of its own, so the debuff is enforced at runtime
-            // (PoisonRework status patches at the bottom of this file).
-            var poisonStatus = cache.GetDef<BaseDef>("Poison_DamageOverTimeStatusDef");
-            Debug.Log(poisonStatus != null
-                ? "[AAP] Poison rework: runtime enforcer active (-50% Acc, -3 WP)."
-                : "[AAP] Poison status def not found; poison rework inactive.");
+            // AAP Phase 3: the runtime enforcement moved to PoisonRework.cs
+            // (new file). It installs via harmony.PatchAll(), needs no def
+            // lookup here, is gated by the "Poison rework" option, and its
+            // WP penalty is applied directly instead of as a stat-mod.
+            // Startup confirmation lines now come from PoisonRework's
+            // OnApply/OnUnapply patches when poison actually fires in
+            // tactical -- grep "[AAP] Poison debuff" in Player.log.
 
             // AAP Q10-B: deleted the stale PsychicResistance_AbilityDef lookup.
             // The def is absent from this game build; the lookup only ever
@@ -191,75 +197,13 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     }
 
     // ================================================================
-    // POISON REWORK ENFORCER (runtime)
-    // Applies -50% Accuracy (multiply 0.5) and -3 WP (add) while the
-    // actor has the Poison damage-over-time status, and removes the
-    // modifications when the status is gone. Replaces the removed
-    // PoisonReworkEnforcer.cs which patched a non-existent method.
-    // AAP T3: actor cast fixed -- Status.Target is an IDamageReceiver
-    // (item slot), use (__instance as TacStatus)?.TacticalActor.
+    // AAP Phase 3: the POISON REWORK ENFORCER that used to live here
+    // (PoisonRework_OnApply_Patch / PoisonRework_OnUnapply_Patch /
+    // PoisonDebuff) has MOVED to the new file PoisonRework.cs with a
+    // redesigned WP mechanism (direct deduction, psychic-orthogonal,
+    // config-gated, save-compat scrubbing). See PoisonRework.cs header
+    // for the full rationale.
     // ================================================================
-    [HarmonyPatch(typeof(Status), "OnApply")]
-    public static class PoisonRework_OnApply_Patch
-    {
-        static void Postfix(Status __instance)
-        {
-            try
-            {
-                if (__instance?.Def?.name != "Poison_DamageOverTimeStatusDef") return;
-                // AAP T3: read the actor off TacStatus, not the Target wrapper.
-                TacticalActor actor = (__instance as TacStatus)?.TacticalActor;
-                if (actor == null) return;
-
-                PoisonDebuff.Apply(actor, __instance.Def);
-                Debug.Log($"[AAP] Poison debuff applied to {actor.DisplayName} (-50% Acc, -3 WP).");
-            }
-            catch (Exception e) { Debug.LogError($"[AAP] PoisonRework OnApply failed: {e.Message}"); }
-        }
-    }
-
-    [HarmonyPatch(typeof(Status), "OnUnapply")]
-    public static class PoisonRework_OnUnapply_Patch
-    {
-        static void Postfix(Status __instance)
-        {
-            try
-            {
-                if (__instance?.Def?.name != "Poison_DamageOverTimeStatusDef") return;
-                // AAP T3: actor cast via TacStatus.
-                TacticalActor actor = (__instance as TacStatus)?.TacticalActor;
-                if (actor == null) return;
-
-                PoisonDebuff.Remove(actor, __instance.Def);
-                Debug.Log($"[AAP] Poison debuff removed from {actor.DisplayName}.");
-            }
-            catch (Exception e) { Debug.LogError($"[AAP] PoisonRework OnUnapply failed: {e.Message}"); }
-        }
-    }
-
-    internal static class PoisonDebuff
-    {
-        internal static void Apply(TacticalActor actor, StatusDef source)
-        {
-            var stats = actor.CharacterStats;
-            var accStat = stats.TryGetStat(StatModificationTarget.Accuracy);
-            accStat?.RemoveStatModificationsWithSource(source, true);
-            accStat?.AddStatModification(new StatModification(
-                StatModificationType.Multiply, StatModificationTarget.Accuracy.ToString(), 0.5f, source, 0f), true);
-
-            var wpStat = stats.TryGetStat(StatModificationTarget.WillPoints);
-            wpStat?.RemoveStatModificationsWithSource(source, true);
-            wpStat?.AddStatModification(new StatModification(
-                StatModificationType.Add, StatModificationTarget.WillPoints.ToString(), -3f, source, 0f), true);
-        }
-
-        internal static void Remove(TacticalActor actor, StatusDef source)
-        {
-            var stats = actor.CharacterStats;
-            stats.TryGetStat(StatModificationTarget.Accuracy)?.RemoveStatModificationsWithSource(source, true);
-            stats.TryGetStat(StatModificationTarget.WillPoints)?.RemoveStatModificationsWithSource(source, true);
-        }
-    }
 
     // ================================================================
     // AAP T5 / Q14 -- RALLY WP RESTORATION (runtime)
