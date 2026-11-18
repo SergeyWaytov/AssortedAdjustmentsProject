@@ -50,26 +50,35 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         }
     }
 
-    // ===== DISABLE RIGHT-CLICK MOVE (Dynamic Type Resolution) =====
-    // Configurable since AAP 1.1: some players found the change awkward with
-    // vehicles (Workshop feedback) - toggle "Disable right-click move" in the
-    // mod options (main menu).
+    // ===== SMART RIGHT-CLICK (accidental-move guard) =====
+    // AAP 1.2.2: replaces the blunt "RMB never moves" patch. Root cause of the
+    // accidental moves players reported: vanilla's OnRightClickMove closes a
+    // contextual menu on RMB and sets a 0.5s cooldown - but a SECOND right
+    // click after that cooldown (the natural "close it again" habit, or just
+    // the next cancel-click) issues a move to whatever tile is under the
+    // cursor. The old fix disabled RMB-move entirely, which also hit every
+    // other use of the shared UIStateCharacterSelected state. Vehicles have
+    // their own selected state and never use "Right Mouse Click Move", so
+    // they were collateral damage of the global suppression.
+    //
+    // Proper fix: RMB-move stays fully available; a right click is only
+    // swallowed when it lands on the exact tile that was under the cursor
+    // when a contextual menu closed, within a short echo window (1.2s).
+    // Moving the mouse to a different tile = intentional move, always allowed.
     [HarmonyPatch]
-    public static class DisableRightClickMovePatch
+    public static class SmartRightClickPatch
     {
+        private static Vector3? _lastCloseHover;
+        private static float _lastCloseTime;
+
         public static bool Prepare()
         {
-            // AAP G1 (live-guard variant): re-check the toggle on every patch
-            // installation instead of latching the value at first Prepare().
-            return ModMain.Cfg?.DisableRightClickMove != false;
+            return ModMain.Cfg != null;
         }
 
         [HarmonyTargetMethod]
         public static MethodBase TargetMethod()
         {
-            // AAP B4: full type name (PhoenixPoint.Tactical.View.ViewStates.UIStateCharacterSelected)
-            // resolves unambiguously; the short name collides with the Geoscape-side
-            // UIStateCharacterSelected type in some builds.
             Type type = AccessTools.TypeByName("PhoenixPoint.Tactical.View.ViewStates.UIStateCharacterSelected");
             return AccessTools.Method(type, "OnRightClickMove");
         }
@@ -79,19 +88,58 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         {
             try
             {
-                // AAP U8: _contextualMenuModule is a PROPERTY (not a field), and
-                // CloseContextualMenu takes one Boolean. The old Field() +
-                // no-arg Method() calls silently no-op'd, so the menu never
-                // closed when right-click suppressed a move order.
-                Traverse state = Traverse.Create(__instance);
-                object contextualMenuModule = state.Property("_contextualMenuModule").GetValue<object>();
-                if (contextualMenuModule != null)
+                if (ModMain.Cfg?.DisableRightClickMove == true)
                 {
-                    state.Method("CloseContextualMenu", new object[] { true }).GetValue();
+                    // Legacy hard-disable: RMB never moves; it only closes the
+                    // contextual menu. Kept for players who prefer it.
+                    object menu = Traverse.Create(__instance).Property("_contextualMenuModule").GetValue<object>();
+                    if (menu != null)
+                    {
+                        Traverse.Create(__instance).Method("CloseContextualMenu", new object[] { true }).GetValue();
+                    }
+                    return false;
                 }
-                return false; // Skip original move
+
+                if (ModMain.Cfg?.SmartRightClickGuard != true)
+                {
+                    return true;   // vanilla behavior, no guard
+                }
+
+                Traverse state = Traverse.Create(__instance);
+                object menu2 = state.Property("_contextualMenuModule").GetValue<object>();
+                bool menuVisible = menu2 != null && Traverse.Create(menu2).Field("IsContextualMenuVisible").GetValue<bool>();
+                object hover = state.Field("_hoverSelection").GetValue<object>();
+                Vector3 hoverPos = hover != null
+                    ? (Vector3)Traverse.Create(hover).Field("ActionGridPos").GetValue()
+                    : Vector3.zero;
+
+                if (menuVisible)
+                {
+                    // This RMB closes a menu: remember what tile is under the
+                    // cursor so the echo click cannot move there.
+                    _lastCloseHover = hoverPos;
+                    _lastCloseTime = Time.time;
+                    return true;   // vanilla closes the menu (and re-arms its own 0.5s cooldown)
+                }
+
+                // Menu-close echo: same tile, within the echo window after a
+                // menu was closed by RMB -> swallow instead of moving.
+                if (_lastCloseHover.HasValue
+                    && hoverPos == _lastCloseHover.Value
+                    && Time.time - _lastCloseTime < 1.2f)
+                {
+                    _lastCloseHover = null;
+                    return false;
+                }
+
+                _lastCloseHover = null;
+                return true;   // normal RMB-move (incl. re-aiming after moving the cursor)
             }
-            catch (Exception e) { Debug.LogError($"[AAP] DisableRightClickMove failed: {e.Message}"); return true; }
+            catch (Exception e)
+            {
+                Debug.LogError($"[AAP] SmartRightClick failed: {e.Message}");
+                return true;
+            }
         }
     }
 

@@ -29,7 +29,16 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
     {
         // ── Core toggles ──────────────────────────────────────────────
 
-        public bool DisableRightClickMove = true;
+        // AAP 1.2.2: replaces the old blunt "disable RMB-move" behavior. The
+        // guard keeps right-click move fully available (vehicles included)
+        // and only swallows the "menu-close echo" click that used to cause
+        // accidental moves.
+        public bool SmartRightClickGuard = true;
+
+        // Legacy option: right-click NEVER issues move orders (it only closes
+        // contextual menus). Off by default now - the guard above fixes the
+        // actual problem without taking RMB-move away.
+        public bool DisableRightClickMove = false;
 
         public bool EnableSmartEvacuation = true;
 
