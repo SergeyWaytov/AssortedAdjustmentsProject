@@ -33,7 +33,20 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
 
         public bool EnableSmartEvacuation = true;
 
+        // Phase 3: also offer evacuation when only PART of the squad can leave,
+        // plus a follow-up prompt after a manual single evacuation.
+        public bool SmartEvacPartialSquad = true;
+
         public bool EnablePlentifulDrops = true;
+
+        // Poison rework: -50% accuracy / -3 WP while poisoned (runtime enforcer).
+        public bool EnablePoisonRework = true;
+
+        // Base facility popup: healing/repair/vehicle lines below the description.
+        public bool FacilityPopupExtraInfo = true;
+
+        // [AAP][SEEKER] diagnostic lines in Player.log (deduplicated, log-only).
+        public bool VerboseDiagnostics = true;
 
         // Thrown grenades land exactly on the aimed point (hand-thrown grenade
         // items only; launchers/rockets/mortars untouched). Off = vanilla scatter.
@@ -44,6 +57,11 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         public int PersonalAbilitiesCount = 5;
 
         public float FrenzySpeedCoefficient = 1.5f;
+
+        // Phase 3: full Frenzy booster set (speed + willpower + damage).
+        public float FrenzyWillpowerCoefficient = 1.5f;
+
+        public float FrenzyDamageCoefficient = 1.5f;
 
         public float VehicleAmmoMultiplier = 1.5f;
 

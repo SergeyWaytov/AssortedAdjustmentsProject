@@ -37,6 +37,11 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
         // Fixed campaign template for Jacob – used by the runtime tutorial fix
         public static TacCharacterDef JacobsFixedTemplate { get; private set; }
         //public static bool DiagnosticsEnabled = false;   // turn on only when needed
+
+        // AAP T10: the mod mutates shared defs at startup; disabling it live
+        // cannot undo those writes. Do not advertise live-disable as safe.
+        public override bool CanSafelyDisable => false;
+
         public override void OnModEnabled()
         {
             AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
@@ -109,8 +114,10 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 Debug.Log("[AAP] Config changed - re-applying def adjustments.");
                 AbilityAdjustments.Apply(DefCache);
                 VehicleAdjustments.Apply(DefCache);
-                FesteringSkiesAdjustments.Apply(DefCache);
-                CorruptedHorizonsAdjustments.Apply(DefCache);
+                // AAP G2: Festering Skies / Corrupted Horizons adjustments cannot be
+                // live-reversed (defs are mutated, not captured/restored). Removed
+                // the no-op re-apply calls here; toggling these requires a game restart
+                // (see the config field tooltips).
                 Debug.Log("[AAP] Config re-apply finished.");
             }
             catch (Exception e)
@@ -163,36 +170,26 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 if (!csv.EndsWith("\n")) csv += "\n";
 
                 var source = I2.Loc.LocalizationManager.Sources[0];
-
-                // Idempotent remove-and-re-add import. We deliberately AVOID
-                // eSpreadsheetUpdateMode.Replace: in this I2 build, Replace
-                // clobbers source 0's language table (9 langs -> 2) and drops
-                // the Russian column's [ru] binding, which renders every AAP_
-                // Russian string as <!-MISSING KEY-!>. Removing only AAP_ terms
-                // first, then AddNewTerms-importing, preserves the language
-                // table intact and re-imports every CSV row fresh on each load
-                // (audit L1 fix; verified in Player.log: "AddNewTerms mode (N
-                // new term(s); existing AAP_ terms removed and re-added; all
-                // languages preserved)").
-                int removed = 0;
+                int before = source.mTerms.Count;
+                // AAP L1 fix: Remove existing AAP_ terms first, then re-import in
+                // AddNewTerms mode. The old Replace mode clobbered source 0's
+                // language table (9 languages -> 2), making Russian AAP_ terms
+                // unreachable (rendered as MISSING KEY). AddNewTerms preserves all
+                // existing languages and the manual remove-then-add makes the
+                // import idempotent across save/load cycles.
                 for (int i = source.mTerms.Count - 1; i >= 0; i--)
                 {
                     string term = source.mTerms[i]?.Term;
                     if (!string.IsNullOrEmpty(term) && term.StartsWith("AAP_", StringComparison.Ordinal))
                     {
-                        // RemoveTerm is present in this I2 build (verified at
-                        // runtime by the tested DLL). If a future ModSDK drops
-                        // it, swap to source.mTerms.RemoveAt(i) - same effect.
                         source.RemoveTerm(term);
-                        removed++;
                     }
                 }
-
-                int before = source.mTerms.Count;
                 source.Import_CSV(string.Empty, csv, I2.Loc.eSpreadsheetUpdateMode.AddNewTerms, ',');
                 source.UpdateDictionary(true);
+                LocalizationManager.LocalizeAll(true);
                 int added = source.mTerms.Count - before;
-                Debug.Log($"[AAP] Localization: CSV processed in AddNewTerms mode ({added} new term(s); {removed} existing AAP_ term(s) removed and re-added; all languages preserved) from AAP_Localization.csv.");
+                Debug.Log($"[AAP] Localization: CSV processed in AddNewTerms mode ({added} new term(s); existing AAP_ terms removed and re-added; all languages preserved) from AAP_Localization.csv.");
             }
             catch (Exception e)
             {
@@ -212,12 +209,15 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 var jacobTemplate = repo.GetDef(jacobGuid) as TacCharacterDef;
                 var irinaTemplate = repo.GetDef(irinaGuid) as TacCharacterDef;
 
-                // Fix Jacob’s campaign template: class tag, gear, and Sniper base abilities
+                // Fix Jacob's campaign template: class tag, gear, and Sniper base abilities
                 if (jacobTemplate != null && irinaTemplate != null)
                 {
                     jacobTemplate.Data.GameTags[0] = irinaTemplate.Data.GameTags[0];
-                    jacobTemplate.Data.BodypartItems = irinaTemplate.Data.BodypartItems;
-                    jacobTemplate.Data.EquipmentItems = irinaTemplate.Data.EquipmentItems;
+                    // AAP T8: copy by value, not by reference. Without ToArray(),
+                    // Jacob shares Irina's mutable equipment arrays -- later
+                    // edits to one template silently mutate the other.
+                    jacobTemplate.Data.BodypartItems = irinaTemplate.Data.BodypartItems?.ToArray();
+                    jacobTemplate.Data.EquipmentItems = irinaTemplate.Data.EquipmentItems?.ToArray();
                     jacobTemplate.Data.Abilites = irinaTemplate.Data.Abilites
                         .Select(a => a as TacticalAbilityDef)
                         .Where(a => a != null)
@@ -231,12 +231,17 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                     Debug.LogWarning("[AAP] Jacob or Irina template not found – skipping class conversion.");
                 }
 
-                // Add personal abilities to all story soldiers (appends to existing abilities)
-                AddPersonalAbilitiesToTemplate(repo, "Jacob", "Trooper_AbilityDef", "Cautious_AbilityDef", "Thief_AbilityDef");
-                AddPersonalAbilitiesToTemplate(repo, "Sophia", "SelfDefenseSpecialist_AbilityDef", "Quarterback_AbilityDef", "Thief_AbilityDef");
+                // AAP T7: Add personal abilities with fail-loud diagnostics.
+                // The old version silently skipped missing defs; the audit found
+                // that 5 of the requested names (Trooper_, Quarterback_, Farsighted_,
+                // Bombardier_, Healer_) do not exist in this build. The conservative
+                // call sites below remove the nonexistent args and defer Irina
+                // (all 3 of her requested defs are absent).
+                AddPersonalAbilitiesToTemplate(repo, "Jacob", "Cautious_AbilityDef", "Thief_AbilityDef");
+                AddPersonalAbilitiesToTemplate(repo, "Sophia", "SelfDefenseSpecialist_AbilityDef", "Thief_AbilityDef");
                 AddPersonalAbilitiesToTemplate(repo, "Omar", "CloseQuartersSpecialist_AbilityDef", "Reckless_AbilityDef", "Biochemist_AbilityDef");
                 AddPersonalAbilitiesToTemplate(repo, "Takeshi", "CloseQuartersSpecialist_AbilityDef", "Reckless_AbilityDef", "Strongman_AbilityDef");
-                AddPersonalAbilitiesToTemplate(repo, "Irina", "Farsighted_AbilityDef", "Bombardier_AbilityDef", "Healer_AbilityDef");
+                Debug.LogWarning("[AAP] Irina personal abilities deferred: no selected defs exist in this build.");
 
                 Debug.Log("[AAP] Soldier templates updated. Jacob is now a Sniper.");
             }
@@ -246,7 +251,9 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             }
         }
 
-        private void AddPersonalAbilitiesToTemplate(DefRepository repo, string soldierName, string ability1, string ability2, string ability3)
+        // AAP T7: params signature so each soldier can have a different count.
+        // Logs a warning for each requested def that is not found (fail-loud).
+        private void AddPersonalAbilitiesToTemplate(DefRepository repo, string soldierName, params string[] requestedNames)
         {
             var template = repo.GetDef(GetGuidForSoldier(soldierName)) as TacCharacterDef;
             if (template == null)
@@ -255,21 +262,21 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
                 return;
             }
 
-            var abilitiesList = new List<TacticalAbilityDef>();
-            foreach (var abilityName in new[] { ability1, ability2, ability3 })
+            var resolved = new List<TacticalAbilityDef>();
+            foreach (string name in requestedNames)
             {
-                var ability = DefCache.GetDef<TacticalAbilityDef>(abilityName);
-                if (ability != null) abilitiesList.Add(ability);
+                var ability = DefCache.GetDef<TacticalAbilityDef>(name);
+                if (ability == null)
+                    Debug.LogWarning($"[AAP] {soldierName}: ability def not found: {name}");
+                else
+                    resolved.Add(ability);
             }
 
-            if (abilitiesList.Count > 0)
-            {
-                // Append to existing abilities instead of overwriting
-                var current = template.Data.Abilites?.ToList() ?? new List<TacticalAbilityDef>();
-                current.AddRange(abilitiesList);
-                template.Data.Abilites = current.Distinct().ToArray(); // avoid duplicates
-                Debug.Log($"[AAP] {soldierName} received {abilitiesList.Count} personal abilities.");
-            }
+            // Append to existing abilities instead of overwriting
+            var current = template.Data.Abilites?.ToList() ?? new List<TacticalAbilityDef>();
+            current.AddRange(resolved);
+            template.Data.Abilites = current.Where(a => a != null).Distinct().ToArray();
+            Debug.Log($"[AAP] {soldierName}: requested {requestedNames.Length}, resolved {resolved.Count}, total {template.Data.Abilites.Length}.");
         }
 
         private string GetGuidForSoldier(string name)
@@ -292,6 +299,6 @@ namespace SergeyWaytov.AssortedAdjustmentsProject
             return I2.Loc.LocalizationManager.GetTranslation("AAP_" + key)?.Replace("\\n", "\n");
         }
 
-
+        
     }
 }
